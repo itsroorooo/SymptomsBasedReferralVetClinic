@@ -1,14 +1,39 @@
 "use client";
 
 import Image from "next/image";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function header({ scrollY, isNavOpen, setIsNavOpen, router }) {
+export default function HeaderUI() {
+  const router = useRouter();
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+
+  // Detect scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Smooth scrolling
+  const scrollToSection = (id) => {
+    const section = document.getElementById(id);
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    setIsNavOpen(false); // Close mobile menu after click
+  };
+
   return (
     <>
       {/* Navbar Section */}
       <nav
         className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 shadow-lg shadow-blue-300 ${
-          scrollY > 50 ? "bg-gray-900 text-white  " : "bg-white text-black "
+          scrollY > 50 ? "bg-gray-900 text-white" : "bg-white text-black"
         }`}
       >
         <div className="flex items-center justify-between p-4 px-6 md:px-12">
@@ -100,7 +125,7 @@ export default function header({ scrollY, isNavOpen, setIsNavOpen, router }) {
               <li key={index}>
                 <a
                   onClick={() => {
-                    router.push(`/${item.toLowerCase()}`);
+                    scrollToSection(item.toLowerCase());
                     setIsNavOpen(false);
                   }}
                   className="block hover:bg-blue-500 hover:text-white px-4 py-2 rounded cursor-pointer"
@@ -113,7 +138,7 @@ export default function header({ scrollY, isNavOpen, setIsNavOpen, router }) {
             <li>
               <a
                 onClick={() => {
-                  router.push("/login");
+                  router.push("/auth/login");
                   setIsNavOpen(false);
                 }}
                 className="block hover:bg-blue-500 hover:text-white px-4 py-2 rounded cursor-pointer"
@@ -124,7 +149,7 @@ export default function header({ scrollY, isNavOpen, setIsNavOpen, router }) {
             <li>
               <a
                 onClick={() => {
-                  router.push("/register");
+                  router.push("/auth/register");
                   setIsNavOpen(false);
                 }}
                 className="block hover:bg-blue-500 hover:text-white px-4 py-2 rounded cursor-pointer"
