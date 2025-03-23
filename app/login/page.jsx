@@ -23,6 +23,7 @@ export default function LoginPage() {
       if (error) throw error;
     } catch (error) {
       console.error("OAuth login error:", error);
+      setPasswordError("OAuth login failed");
     } finally {
       setLoading(false);
     }
@@ -30,24 +31,26 @@ export default function LoginPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const formData = new FormData(event.target);
-    const email = formData.get("email");
-    const password = formData.get("password");
-
-    if (!email || !password) {
-      setEmailError(!email ? "Email is required" : "");
-      setPasswordError(!password ? "Password is required" : "");
-      return;
-    }
-
+    setEmailError("");
+    setPasswordError("");
     setLoading(true);
-    try {
-      await login(formData);
-    } catch (error) {
-      console.error("Login error:", error);
-    } finally {
-      setLoading(false);
+
+    const formData = new FormData(event.currentTarget);
+    const result = await login(formData);
+
+    if (result?.error) {
+      if (result.error.field === "email") {
+        setEmailError(result.error.message);
+      } else if (result.error.field === "password") {
+        setPasswordError(result.error.message);
+      } else {
+        setPasswordError(result.error.message);
+      }
+    } else if (result?.success) {
+      window.location.href = "/"; // Client-side redirect
     }
+
+    setLoading(false);
   };
 
   return (
@@ -68,11 +71,10 @@ export default function LoginPage() {
                 name="email"
                 type="email"
                 required
-                className={`peer w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 ${
-                  emailError ? "border-red-500" : ""
+                className={`peer w-full px-4 py-2 border rounded-md focus:outline-none focus:border-blue-500 ${
+                  emailError ? "border-red-500" : "border-gray-300"
                 }`}
                 placeholder=" "
-                aria-label="Email Address"
               />
               <label
                 htmlFor="email"
@@ -92,11 +94,10 @@ export default function LoginPage() {
                 name="password"
                 type="password"
                 required
-                className={`peer w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 ${
-                  passwordError ? "border-red-500" : ""
+                className={`peer w-full px-4 py-2 border rounded-md focus:outline-none focus:border-blue-500 ${
+                  passwordError ? "border-red-500" : "border-gray-300"
                 }`}
                 placeholder=" "
-                aria-label="Password"
               />
               <label
                 htmlFor="password"
@@ -131,11 +132,9 @@ export default function LoginPage() {
 
             {/* Submit Button */}
             <button
-              formAction={login}
               type="submit"
-              className="w-full py-3 rounded-md text-white bg-blue-600 hover:bg-blue-700 text-sm sm:text-lg font-semibold shadow-md transition duration-300 flex justify-center items-center"
+              className="w-full py-3 rounded-md text-white bg-blue-600 hover:bg-blue-700 text-lg font-semibold shadow-md transition duration-300 flex justify-center items-center"
               disabled={loading}
-              aria-label="Login"
             >
               {loading ? (
                 <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
