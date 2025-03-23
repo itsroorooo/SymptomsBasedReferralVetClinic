@@ -62,49 +62,55 @@ export default function LoginPage() {
 
           <form className="flex flex-col mt-6" onSubmit={handleSubmit}>
             {/* Email Input */}
-            <div className="mb-2">
-              <label htmlFor="email" className="block text-gray-700 mb-1">
-                Email address
-              </label>
+            <div className="relative mb-6">
               <input
                 id="email"
                 name="email"
                 type="email"
                 required
-                className={`w-full px-4 py-2 border rounded-md focus:outline-none ${
-                  emailError ? "border-red-500" : "border-gray-300"
+                className={`peer w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 ${
+                  emailError ? "border-red-500" : ""
                 }`}
-                placeholder=""
+                placeholder=" "
                 aria-label="Email Address"
               />
+              <label
+                htmlFor="email"
+                className="absolute left-2 -top-2.5 bg-white px-1 text-sm text-gray-500 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-400 peer-placeholder-shown:top-2 peer-focus:-top-2.5 peer-focus:text-sm peer-focus:text-gray-600"
+              >
+                Email address
+              </label>
               {emailError && (
                 <div className="text-red-500 text-sm mt-1">{emailError}</div>
               )}
             </div>
 
             {/* Password Input */}
-            <div className="mb-4">
-              <label htmlFor="password" className="block text-gray-700 mb-1">
-                Password
-              </label>
+            <div className="relative mb-6">
               <input
                 id="password"
                 name="password"
                 type="password"
                 required
-                className={`w-full px-4 py-2 border rounded-md focus:outline-none ${
-                  passwordError ? "border-red-500" : "border-gray-300"
+                className={`peer w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 ${
+                  passwordError ? "border-red-500" : ""
                 }`}
-                placeholder=""
+                placeholder=" "
                 aria-label="Password"
               />
+              <label
+                htmlFor="password"
+                className="absolute left-2 -top-2.5 bg-white px-1 text-sm text-gray-500 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-400 peer-placeholder-shown:top-2 peer-focus:-top-2.5 peer-focus:text-sm peer-focus:text-gray-600"
+              >
+                Password
+              </label>
               {passwordError && (
                 <div className="text-red-500 text-sm mt-1">{passwordError}</div>
               )}
             </div>
 
             {/* Remember Me Checkbox */}
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-6">
               <label className="flex items-center text-gray-700">
                 <input
                   type="checkbox"
@@ -127,7 +133,7 @@ export default function LoginPage() {
             <button
               formAction={login}
               type="submit"
-              className="w-full py-2 rounded-md text-white bg-blue-600 hover:bg-black text-sm sm:text-lg font-semibold shadow-md transition duration-300 flex justify-center items-center"
+              className="w-full py-3 rounded-md text-white bg-blue-600 hover:bg-blue-700 text-sm sm:text-lg font-semibold shadow-md transition duration-300 flex justify-center items-center"
               disabled={loading}
               aria-label="Login"
             >
@@ -148,7 +154,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleOAuthLogin("google")}
-              className="w-full flex items-center justify-center py-2 rounded-lg bg-white border border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-900 hover:text-white"
+              className="w-full flex items-center justify-center py-2.5 rounded-lg bg-white border border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50"
               aria-label="Continue with Google"
             >
               <Image
@@ -164,7 +170,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleOAuthLogin("facebook")}
-              className="w-full flex items-center justify-center py-2 mt-3 rounded-lg bg-white border border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-900 hover:text-white"
+              className="w-full flex items-center justify-center py-2.5 mt-3 rounded-lg bg-white border border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50"
               aria-label="Continue with Facebook"
             >
               <Image
