@@ -5,6 +5,7 @@ import Image from "next/image";
 import { login } from "./actions";
 import { createClient } from "@/utils/supabase/client";
 
+
 export default function LoginPage() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -56,7 +57,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Image on the left side - full height */}
-      <div className=" md:block md:w-1/2  bg-gray-900 flex flex-col items-center justify-center"></div>
+      <div className=" md:block md:w-1/2  bg-blue-500 flex flex-col items-center justify-center rounded-b-full"></div>
 
       {/* Login Form - Right side */}
       <div className="w-full md:w-1/2 bg-white relative">
