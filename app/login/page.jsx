@@ -1,16 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { login } from "./actions";
 import { createClient } from "@/utils/supabase/client";
-
 
 export default function LoginPage() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Typing animation states
+  const [displayedText, setDisplayedText] = useState("");
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showCursor, setShowCursor] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
+
+  // Customizable text array
+  const phrases = ["Furmoms", "Furdads", "Furbabies", "PetLovers"];
+
+  // Typing speed controls
+  const typingSpeed = 100;
+  const deletingSpeed = 50;
+  const pauseBetweenPhrases = 1500;
+
+  useEffect(() => {
+    // Cursor blink effect
+    const cursorInterval = setInterval(() => {
+      setShowCursor((prev) => !prev);
+    }, 500);
+
+    return () => clearInterval(cursorInterval);
+  }, []);
+
+  useEffect(() => {
+    const currentPhrase = phrases[currentPhraseIndex];
+
+    if (!isDeleting && currentIndex < currentPhrase.length) {
+      // Typing forward
+      const timeout = setTimeout(() => {
+        setDisplayedText(currentPhrase.substring(0, currentIndex + 1));
+        setCurrentIndex((prev) => prev + 1);
+      }, typingSpeed);
+
+      return () => clearTimeout(timeout);
+    } else if (isDeleting && currentIndex > 0) {
+      // Deleting backward
+      const timeout = setTimeout(() => {
+        setDisplayedText(currentPhrase.substring(0, currentIndex - 1));
+        setCurrentIndex((prev) => prev - 1);
+      }, deletingSpeed);
+
+      return () => clearTimeout(timeout);
+    } else if (currentIndex === currentPhrase.length) {
+      // Finished typing - pause then start deleting
+      if (!isDeleting) {
+        const timeout = setTimeout(() => {
+          setIsDeleting(true);
+        }, pauseBetweenPhrases);
+
+        return () => clearTimeout(timeout);
+      }
+    } else if (currentIndex === 0 && isDeleting) {
+      // Finished deleting - move to next phrase
+      setIsDeleting(false);
+      setCurrentPhraseIndex((currentPhraseIndex + 1) % phrases.length);
+    }
+  }, [currentIndex, isDeleting, currentPhraseIndex]);
 
   const handleCheckboxChange = () => {
     setRememberMe(!rememberMe);
@@ -57,7 +115,28 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Image on the left side - full height */}
-      <div className=" md:block md:w-1/2  bg-blue-500 flex flex-col items-center justify-center rounded-b-full"></div>
+      <div className="sm:hidden md:block md:w-1/2  bg-blue-500 flex flex-col items-center justify-center rounded-b-full">
+        <div className="text-center p-8 mt-72">
+          <h1 className="text-5xl font-bold text-white ">
+            Hi there, <span className="text-yellow-300">{displayedText}</span>
+            <span
+              className={`inline-block w-2 h-10 bg-yellow-300 ml-1 ${
+                showCursor ? "opacity-100" : "opacity-0"
+              }`}
+            ></span>
+          </h1>
+          <p className="text-xl text-white mt-4">
+            Welcome to our pet community!
+          </p>
+        </div>
+        <Image
+          src="/image/petlover.png"
+          width={700}
+          height={700}
+          alt="SymptoVet Logo"
+          className="w-130 h-auto ml-58"
+        />
+      </div>
 
       {/* Login Form - Right side */}
       <div className="w-full md:w-1/2 bg-white relative">
@@ -79,7 +158,7 @@ export default function LoginPage() {
         <div className="flex items-center justify-center h-full p-6 md:p-12">
           <div className="w-full max-w-lg">
             <div className="text-center mb-8">
-              <h3 className="lg:text-5xl md:text-3xl font-bold text-blue-600 mt-10">
+              <h3 className="lg:text-5xl sm:text-4xl md:text-4xl font-bold text-blue-600 mt-10">
                 Welcome Back!
               </h3>
               <p className="text-gray-600 mt-2">Please login to your account</p>
@@ -177,7 +256,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleOAuthLogin("google")}
-                className="w-full flex items-center border-2 justify-center py-2.5 rounded-lg bg-white border border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50"
+                className="w-full flex items-center border-2 justify-center py-2.5 rounded-lg bg-white  border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50"
                 aria-label="Continue with Google"
               >
                 <Image
@@ -193,7 +272,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleOAuthLogin("facebook")}
-                className="w-full flex items-center border-2 justify-center py-2.5 mt-3 rounded-lg bg-white border border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50"
+                className="w-full flex items-center border-2 justify-center py-2.5 mt-3 rounded-lg bg-white  border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50"
                 aria-label="Continue with Facebook"
               >
                 <Image
