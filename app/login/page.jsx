@@ -126,7 +126,7 @@ export default function LoginPage() {
             ></span>
           </h1>
           <p className="text-xl text-white mt-4">
-            Welcome to our pet community!
+            If your pet acts off, a vet check could be their best hope!
           </p>
         </div>
         <Image
@@ -161,7 +161,9 @@ export default function LoginPage() {
               <h3 className="lg:text-5xl sm:text-4xl md:text-4xl font-bold text-blue-600 mt-10">
                 Welcome Back!
               </h3>
-              <p className="text-gray-600 mt-2">Please login to your account</p>
+              <p className="text-gray-600 mt-2">
+                Login to your account to continue
+              </p>
             </div>
 
             <form className="flex flex-col mt-6" onSubmit={handleSubmit}>
@@ -236,7 +238,7 @@ export default function LoginPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full py-3 rounded-md text-white bg-blue-600 hover:bg-blue-700 text-lg font-semibold shadow-md transition duration-300 flex justify-center items-center"
+                className="w-full py-3 rounded-md text-white bg-blue-600 hover:bg-blue-900 text-lg font-semibold shadow-md transition duration-300 flex justify-center items-center"
                 disabled={loading}
               >
                 {loading ? (
@@ -256,7 +258,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleOAuthLogin("google")}
-                className="w-full flex items-center border-2 justify-center py-2.5 rounded-lg bg-white  border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50"
+                className="w-full flex items-center border-2 justify-center py-2.5 rounded-lg bg-white  border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-blue-200"
                 aria-label="Continue with Google"
               >
                 <Image
@@ -272,7 +274,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleOAuthLogin("facebook")}
-                className="w-full flex items-center border-2 justify-center py-2.5 mt-3 rounded-lg bg-white  border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50"
+                className="w-full flex items-center border-2 justify-center py-2.5 mt-3 rounded-lg bg-white  border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-blue-200"
                 aria-label="Continue with Facebook"
               >
                 <Image
