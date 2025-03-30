@@ -1,16 +1,14 @@
-// Dashboard.js
 "use client";
 
 import Image from "next/image";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Sidebar from "../Sidebar/page";
+import { logout } from "@/app/logout/actions";
 
 const Dashboard = () => {
-  const [requiredEquipment, setRequiredEquipment] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // State to control sidebar visibility
-  const [activeComponent, setActiveComponent] = useState("home"); // State to track active component
-  const [showMap, setShowMap] = useState(false); // State to control map visibility
+  const [activeComponent, setActiveComponent] = useState("Pethome");
 
   // Toggle sidebar function
   const toggleSidebar = () => {
@@ -36,13 +34,6 @@ const Dashboard = () => {
     // Cleanup event listener on unmount
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  // Handle form submission from SymptomsList
-  const handleSymptomsSubmit = (equipment) => {
-    setRequiredEquipment(equipment);
-    setShowMap(true); // Show the map after submission
-    setActiveComponent("map"); // Set the active component to map
-  };
 
   return (
     <div className="font-[Poppins] h-screen">
@@ -82,19 +73,11 @@ const Dashboard = () => {
         <div className="flex items-center justify-between">
           {/* Title on the Left (Visible on Mobile) */}
           <div className="flex items-center space-x-4">
-            <h1 className=" ml-10 text-2xl font-bold text-blue-500">Home</h1>
+            <h1 className=" ml-68 text-2xl font-bold text-blue-500">Home</h1>
           </div>
 
           {/* Card on the Right */}
           <div className="relative flex items-center space-x-4">
-            <div>
-              <p className="text-black text-lg">
-                Hey,{" "}
-                <span className="font-bold text-blue-500 text-lg">Rose</span>
-              </p>
-              <p className="text-black text-sm">Fur Mom</p>
-            </div>
-
             {/* Dropdown Toggle using Checkbox */}
             <div className="relative">
               {/* Hidden Checkbox */}
@@ -153,12 +136,14 @@ const Dashboard = () => {
                 </ul>
 
                 <div className="py-1">
-                  <a
-                    href="/auth/logout"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
-                  >
-                    Logout
-                  </a>
+                  <form action={logout}>
+                    <button
+                      type="submit"
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+                    >
+                      Logout
+                    </button>
+                  </form>
                 </div>
               </div>
             </div>

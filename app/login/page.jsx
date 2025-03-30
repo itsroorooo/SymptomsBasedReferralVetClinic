@@ -2,14 +2,17 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { userRouter } from "next/navigation";
 import { login } from "./actions";
 import { createClient } from "@/utils/supabase/client";
+import Loading from "../components/Loading";
 
 export default function LoginPage() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false); // For route navigation
 
   // Typing animation states
   const [displayedText, setDisplayedText] = useState("");
@@ -107,6 +110,7 @@ export default function LoginPage() {
       }
     } else if (result?.success) {
       window.location.href = "../components/Pet_Owners"; // Client-side redirect
+      setIsNavigating(true);
     }
 
     setLoading(false);
@@ -114,6 +118,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
+      {isNavigating && <Loading />}
       {/* Image on the left side - full height */}
       <div className="sm:hidden md:block md:w-1/2  bg-blue-500 flex flex-col items-center justify-center rounded-b-full">
         <div className="text-center p-8 mt-72">
