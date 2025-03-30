@@ -83,7 +83,7 @@ export default function HeaderUI() {
               |{" "}
             </span>
             <span
-              onClick={() => router.push("/register")}
+              onClick={() => router.push("/signup")}
               className="text-lg hover:bg-blue-500 hover:text-white px-4 py-2 rounded cursor-pointer"
             >
               Register
@@ -138,7 +138,7 @@ export default function HeaderUI() {
             <li>
               <a
                 onClick={() => {
-                  router.push("/auth/login");
+                  router.push("/login");
                   setIsNavOpen(false);
                 }}
                 className="block hover:bg-blue-500 hover:text-white px-4 py-2 rounded cursor-pointer"
@@ -149,7 +149,7 @@ export default function HeaderUI() {
             <li>
               <a
                 onClick={() => {
-                  router.push("/auth/register");
+                  router.push("/signup");
                   setIsNavOpen(false);
                 }}
                 className="block hover:bg-blue-500 hover:text-white px-4 py-2 rounded cursor-pointer"

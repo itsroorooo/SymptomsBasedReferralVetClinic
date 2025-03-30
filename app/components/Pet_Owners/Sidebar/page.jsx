@@ -4,7 +4,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
-import PetHome from "../PetHome/page";
 
 const Sidebar = ({ isSidebarOpen, toggleSidebar, setActiveComponent }) => {
   return (
@@ -38,7 +37,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, setActiveComponent }) => {
         {/* Home Link */}
         <a
           href="#"
-          onClick={() => setActiveComponent("PetHome")}
+          onClick={() => setActiveComponent("Dashboard")}
           className="group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-lg text-white"
         >
           <svg

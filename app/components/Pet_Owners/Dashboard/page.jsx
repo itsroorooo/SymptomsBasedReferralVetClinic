@@ -8,7 +8,7 @@ import { logout } from "@/app/logout/actions";
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // State to control sidebar visibility
-  const [activeComponent, setActiveComponent] = useState("Pethome");
+  const [activeComponent, setActiveComponent] = useState("Dashboard");
 
   // Toggle sidebar function
   const toggleSidebar = () => {
@@ -156,7 +156,7 @@ const Dashboard = () => {
         {activeComponent === "symptoms" && (
           <SymptomsList onSubmit={handleSymptomsSubmit} />
         )}
-        {activeComponent === "PetHome" && <div>Home Content</div>}
+        {activeComponent === "Dashboard" && <div>Home Content</div>}
         {activeComponent === "pet" && <div>Pet Content</div>}
         {activeComponent === "appointment" && <div>Appointment Content</div>}
         {activeComponent === "logs" && <div>Logs Content</div>}
