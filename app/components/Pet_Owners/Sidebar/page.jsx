@@ -5,7 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 
-const Sidebar = ({ isSidebarOpen, toggleSidebar, setActiveComponent }) => {
+const Sidebar = ({
+  isSidebarOpen,
+  toggleSidebar,
+  setActiveComponent,
+  activeComponent,
+}) => {
   return (
     <aside
       id="sidebar"
@@ -37,13 +42,20 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, setActiveComponent }) => {
         {/* Home Link */}
         <a
           href="#"
-          onClick={() => setActiveComponent("Dashboard")}
-          className="group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-lg text-white"
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveComponent("Dashboard");
+          }}
+          className={`flex items-center py-3 px-6 rounded transition duration-200 ${
+            activeComponent === "Dashboard"
+              ? "bg-blue-500"
+              : "hover:bg-blue-500"
+          }`}
         >
           <svg
-            className="w-6 h-6 mr-3 group-hover:fill-white"
+            className="w-6 h-6 mr-3"
             viewBox="0 0 24 24"
-            fill="#2196F3"
+            fill={activeComponent === "Dashboard" ? "white" : "#2196F3"}
             xmlns="http://www.w3.org/2000/svg"
           >
             <path

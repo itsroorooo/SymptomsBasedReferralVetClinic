@@ -65,6 +65,7 @@ const Dashboard = () => {
           isSidebarOpen={isSidebarOpen}
           toggleSidebar={toggleSidebar}
           setActiveComponent={setActiveComponent}
+          activeComponent={activeComponent}
         />
       </div>
 
