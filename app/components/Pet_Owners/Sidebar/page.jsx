@@ -46,7 +46,7 @@ const Sidebar = ({
             e.preventDefault();
             setActiveComponent("Dashboard");
           }}
-          className={`flex items-center py-3 px-6 rounded transition duration-200 ${
+          className={`flex items-center py-3 px-6 mb-2 rounded-lg transition duration-200 ${
             activeComponent === "Dashboard"
               ? "bg-blue-500"
               : "hover:bg-blue-500"
@@ -71,11 +71,13 @@ const Sidebar = ({
         <a
           href="#"
           onClick={() => setActiveComponent("pet")}
-          className="group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-lg text-white"
+          className={`group flex items-center py-3 px-6 rounded-lg transition duration-200 ${
+            activeComponent === "pet" ? "bg-blue-500" : "hover:bg-blue-500"
+          }`}
         >
           <svg
-            className="w-6 h-6 mr-3 group-hover:fill-white"
-            fill="#2196F3"
+            className="w-6 h-6 mr-3"
+            fill={activeComponent === "pet" ? "white" : "#2196F3"}
             version="1.1"
             id="Capa_1"
             xmlns="http://www.w3.org/2000/svg"

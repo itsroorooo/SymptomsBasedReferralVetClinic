@@ -109,7 +109,7 @@ export default function LoginPage() {
         setPasswordError(result.error.message);
       }
     } else if (result?.success) {
-      window.location.href = "../components/Pet_Owners"; // Client-side redirect
+      window.location.href = "/user"; // Client-side redirect
       setIsNavigating(true);
     }
 
