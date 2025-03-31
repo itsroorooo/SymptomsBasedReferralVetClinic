@@ -1,97 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import AddPetModal from "./AddPetModal";
-import { createClient } from "@/utils/supabase/client";
 
 export default function PetsPage() {
   const [pets, setPets] = useState([]);
   const [petToEdit, setPetToEdit] = useState(null);
   const [petToDelete, setPetToDelete] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch pets from Supabase
-  useEffect(() => {
-    const fetchPets = async () => {
-      try {
-        setLoading(true);
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (user) {
-          const { data, error } = await supabase
-            .from("pets")
-            .select("*")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false });
-
-          if (error) throw error;
-          setPets(data || []);
-        }
-      } catch (error) {
-        console.error("Error fetching pets:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPets();
-  }, []);
-
-  const handleAddPet = async (newPet) => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      const { data, error } = await supabase
-        .from("pets")
-        .insert([
-          {
-            ...newPet,
-            user_id: user.id,
-          },
-        ])
-        .select();
-
-      if (error) throw error;
-      setPets([data[0], ...pets]);
-    } catch (error) {
-      console.error("Error adding pet:", error);
-    }
+  const handleAddPet = (newPet) => {
+    setPets([...pets, newPet]);
   };
 
-  const handleEditPet = async (updatedPet) => {
-    try {
-      const { error } = await supabase
-        .from("pets")
-        .update(updatedPet)
-        .eq("id", updatedPet.id);
-
-      if (error) throw error;
-      setPets(pets.map((pet) => (pet.id === updatedPet.id ? updatedPet : pet)));
-      setPetToEdit(null);
-    } catch (error) {
-      console.error("Error updating pet:", error);
-    }
+  const handleEditPet = (updatedPet) => {
+    setPets(pets.map((pet) => (pet.id === updatedPet.id ? updatedPet : pet)));
+    setPetToEdit(null);
   };
 
-  const confirmDelete = async () => {
-    if (!petToDelete) return;
-
-    try {
-      const { error } = await supabase
-        .from("pets")
-        .delete()
-        .eq("id", petToDelete);
-
-      if (error) throw error;
+  const confirmDelete = () => {
+    if (petToDelete) {
       setPets(pets.filter((pet) => pet.id !== petToDelete));
       setPetToDelete(null);
-    } catch (error) {
-      console.error("Error deleting pet:", error);
     }
+  };
+
+  const cancelDelete = () => {
+    setPetToDelete(null);
   };
 
   return (
@@ -245,17 +179,6 @@ export default function PetsPage() {
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Age:</span> {pet.age} years
                   </p>
-                  {pet.weight && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      <span className="font-medium">Weight:</span> {pet.weight}{" "}
-                      kg
-                    </p>
-                  )}
-                  {pet.color && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      <span className="font-medium">Color:</span> {pet.color}
-                    </p>
-                  )}
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Type:</span>{" "}
                     <span className="capitalize">{pet.type}</span>
