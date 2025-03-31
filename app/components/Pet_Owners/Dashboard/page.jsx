@@ -5,39 +5,34 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Sidebar from "../Sidebar/page";
 import { logout } from "@/app/logout/actions";
+import PetsPage from "../Pet/page";
 
 const Dashboard = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // State to control sidebar visibility
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeComponent, setActiveComponent] = useState("Dashboard");
 
-  // Toggle sidebar function
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  // Close sidebar on larger screens
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 768) {
-        setIsSidebarOpen(true); // Always show sidebar on larger screens
+        setIsSidebarOpen(true);
       } else {
-        setIsSidebarOpen(false); // Hide sidebar on smaller screens
+        setIsSidebarOpen(false);
       }
     };
 
-    // Add event listener for window resize
     window.addEventListener("resize", handleResize);
-
-    // Initial check on component mount
     handleResize();
 
-    // Cleanup event listener on unmount
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return (
     <div className="font-[Poppins] h-screen">
-      {/* Sidebar Toggle Button (Visible on Mobile) */}
+      {/* Sidebar Toggle Button */}
       <button
         onClick={toggleSidebar}
         className="fixed top-4 left-4 z-50 p-2 bg-gray-900 text-white rounded-md md:hidden"
@@ -60,7 +55,6 @@ const Dashboard = () => {
 
       {/* Sidebar Container */}
       <div className="flex">
-        {/* Sidebar */}
         <Sidebar
           isSidebarOpen={isSidebarOpen}
           toggleSidebar={toggleSidebar}
@@ -72,23 +66,25 @@ const Dashboard = () => {
       {/* Header Section */}
       <header className="shadow-md py-4 px-4 md:px-10">
         <div className="flex items-center justify-between">
-          {/* Title on the Left (Visible on Mobile) */}
           <div className="flex items-center space-x-4">
-            <h1 className=" ml-68 text-2xl font-bold text-blue-500">Home</h1>
+            <h1 className="ml-68 text-2xl font-bold text-blue-500">
+              {activeComponent === "Dashboard" && "Home"}
+              {activeComponent === "pet" && "My Pets"}
+              {activeComponent === "appointment" && "Appointments"}
+              {activeComponent === "logs" && "Logs"}
+              {activeComponent === "map" && "Vet Map"}
+              {activeComponent === "symptoms" && "Symptoms"}
+            </h1>
           </div>
 
-          {/* Card on the Right */}
+          {/* User dropdown */}
           <div className="relative flex items-center space-x-4">
-            {/* Dropdown Toggle using Checkbox */}
             <div className="relative">
-              {/* Hidden Checkbox */}
               <input
                 type="checkbox"
                 id="dropdownToggle"
                 className="hidden peer"
               />
-
-              {/* Avatar Button */}
               <label htmlFor="dropdownToggle">
                 <Image
                   src="/image/megan.jpg"
@@ -99,7 +95,6 @@ const Dashboard = () => {
                 />
               </label>
 
-              {/* Dropdown Menu */}
               <div className="hidden peer-checked:block absolute right-0 mt-2 bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-44 dark:bg-gray-700 dark:divide-gray-600">
                 <div className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                   <div>Bonnie Green</div>
@@ -153,16 +148,14 @@ const Dashboard = () => {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex justify-center items-center ml-0 md:ml-60 p-6">
-        {activeComponent === "symptoms" && (
-          <SymptomsList onSubmit={handleSymptomsSubmit} />
-        )}
+      <main className="flex-1 ml-0 md:ml-60 p-6 overflow-auto">
         {activeComponent === "Dashboard" && <div>Home Content</div>}
-        {activeComponent === "pet" && <div>Pet Content</div>}
+        {activeComponent === "pet" && <PetsPage />}
         {activeComponent === "appointment" && <div>Appointment Content</div>}
         {activeComponent === "logs" && <div>Logs Content</div>}
         {activeComponent === "map" && <VetMap />}
-      </div>
+        {activeComponent === "symptoms" && <SymptomsList />}
+      </main>
     </div>
   );
 };
