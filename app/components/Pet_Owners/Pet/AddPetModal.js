@@ -15,9 +15,31 @@ const petBreeds = {
     "Pug",
     "Other",
   ],
-  cat: ["Persian", "Maine Coon", "Siamese", "Ragdoll", "Bengal", "Other"],
-  bird: ["Parakeet", "Cockatiel", "Lovebird", "Canary", "Parrot", "Other"],
-  other: ["Rabbit", "Hamster", "Guinea Pig", "Turtle", "Snake", "Other"],
+  cat: [
+    "Bengal",
+    "Burmese",
+    "Maine Coon",
+    "Ragdoll",
+    "Scottish Fold",
+    "Siamese",
+    "Siberian",
+    "Sphynx",
+    "Persian",
+    "Other",
+  ],
+  bird: [
+    "Canary",
+    "Cockatiel",
+    "Dove",
+    "Hummingbird",
+    "Lovebird",
+    "Parrot",
+    "Pigeons",
+    "Robin",
+    "Parakeet",
+    "Other",
+  ],
+  other: ["Rabbit", "Hamster", "Guinea Pig", "Turtle", "Other"],
 };
 
 export default function AddPetModal({
@@ -394,6 +416,53 @@ export default function AddPetModal({
                     ))}
                   </div>
                 )}
+              </div>
+              {/* Weight and Color */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Weight */}
+                <div>
+                  <label
+                    htmlFor="weight"
+                    className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Weight
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      id="weight"
+                      name="weight"
+                      value={formData.weight}
+                      onChange={handleChange}
+                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                      placeholder="e.g. 10"
+                      min="0"
+                      step="0.1"
+                    />
+                    <span className="absolute right-3 top-2.5 text-sm text-gray-500 dark:text-gray-400">
+                      kg
+                    </span>
+                  </div>
+                </div>
+
+                {/* Color */}
+                <div>
+                  <label
+                    htmlFor="color"
+                    className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Color
+                  </label>
+                  <input
+                    type="text"
+                    id="color"
+                    name="color"
+                    value={formData.color}
+                    onChange={handleChange}
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                    placeholder="e.g. Black, White, etc."
+                  />
+                </div>
               </div>
 
               {/* Medical History */}
