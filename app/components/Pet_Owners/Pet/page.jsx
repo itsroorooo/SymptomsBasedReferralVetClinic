@@ -1,26 +1,106 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AddPetModal from "./AddPetModal";
+import { createClient } from "@/utils/supabase/client";
 
 export default function PetsPage() {
   const [pets, setPets] = useState([]);
   const [petToEdit, setPetToEdit] = useState(null);
   const [petToDelete, setPetToDelete] = useState(null);
+  const [loading, setLoading] = useState(true);
+  // Initialize Supabase client
+  const supabase = createClient();
 
-  const handleAddPet = (newPet) => {
-    setPets([...pets, newPet]);
+  // Fetch pets from Supabase
+  useEffect(() => {
+    const fetchPets = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from("pets")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        setPets(data || []);
+      } catch (error) {
+        console.error("Error fetching pets:", error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPets();
+
+    // Set up real-time updates
+    const channel = supabase
+      .channel("pets-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "pets" },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            setPets((prev) => [payload.new, ...prev]);
+          } else if (payload.eventType === "UPDATE") {
+            setPets((prev) =>
+              prev.map((pet) => (pet.id === payload.new.id ? payload.new : pet))
+            );
+          } else if (payload.eventType === "DELETE") {
+            setPets((prev) => prev.filter((pet) => pet.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleAddPet = async (newPet) => {
+    try {
+      const { data, error } = await supabase
+        .from("pets")
+        .insert([{ some_column: "someValue" }, { some_column: "otherValue" }])
+        .select();
+
+      if (error) throw error;
+      // Real-time update will handle the state change
+    } catch (error) {
+      console.error("Error adding pet:", error.message);
+      throw error; // Re-throw to handle in the modal
+    }
   };
 
-  const handleEditPet = (updatedPet) => {
-    setPets(pets.map((pet) => (pet.id === updatedPet.id ? updatedPet : pet)));
-    setPetToEdit(null);
+  const handleEditPet = async (updatedPet) => {
+    try {
+      const { error } = await supabase
+        .from("pets")
+        .update(updatedPet)
+        .eq("id", updatedPet.id);
+
+      if (error) throw error;
+      setPetToEdit(null);
+    } catch (error) {
+      console.error("Error updating pet:", error.message);
+      throw error; // Re-throw to handle in the modal
+    }
   };
 
-  const confirmDelete = () => {
-    if (petToDelete) {
-      setPets(pets.filter((pet) => pet.id !== petToDelete));
+  const confirmDelete = async () => {
+    if (!petToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from("pets")
+        .delete()
+        .eq("id", petToDelete);
+
+      if (error) throw error;
       setPetToDelete(null);
+    } catch (error) {
+      console.error("Error deleting pet:", error.message);
     }
   };
 
