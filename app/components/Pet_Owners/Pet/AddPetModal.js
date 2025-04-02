@@ -210,12 +210,12 @@ export default function AddPetModal({
           onClick={handleClose}
         >
           <div
-            className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl dark:bg-gray-800 transform ${
+            className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl  ${
               isAnimating ? "scale-100" : "scale-95"
             } transition-transform duration-200 ease-in-out`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700 rounded-t-xl bg-gradient-to-r from-blue-500 to-gray-900">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 rounded-t-xl bg-gradient-to-r from-blue-500 to-gray-900">
               <h3 className="text-xl font-bold text-white">
                 {petToEdit ? "Edit Pet" : "Add New Pet"}
               </h3>
@@ -296,14 +296,14 @@ export default function AddPetModal({
               <div>
                 <label
                   htmlFor="name"
-                  className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                  className="block mb-2 text-sm font-medium text-gray-700"
                 >
                   Pet Name <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <svg
-                      className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                      className="w-4 h-4 text-gray-500"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -323,7 +323,7 @@ export default function AddPetModal({
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5"
                     placeholder="e.g. Fluffy"
                     required
                   />
@@ -336,7 +336,7 @@ export default function AddPetModal({
                 <div>
                   <label
                     htmlFor="age"
-                    className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                    className="block mb-2 text-sm font-medium text-gray-700"
                   >
                     Age <span className="text-red-500">*</span>
                   </label>
@@ -347,13 +347,13 @@ export default function AddPetModal({
                       name="age"
                       value={formData.age}
                       onChange={handleChange}
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                       placeholder="e.g. 3"
                       min="0"
                       max="30"
                       required
                     />
-                    <span className="absolute right-3 top-2.5 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="absolute right-3 top-2.5 text-sm text-gray-500">
                       years
                     </span>
                   </div>
@@ -363,7 +363,7 @@ export default function AddPetModal({
                 <div>
                   <label
                     htmlFor="type"
-                    className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                    className="block mb-2 text-sm font-medium text-gray-700"
                   >
                     Pet Type <span className="text-red-500">*</span>
                   </label>
@@ -372,7 +372,7 @@ export default function AddPetModal({
                     name="type"
                     value={formData.type}
                     onChange={handleChange}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                     required
                   >
                     <option value="dog">Dog</option>
@@ -387,7 +387,7 @@ export default function AddPetModal({
               <div className="relative" ref={breedDropdownRef}>
                 <label
                   htmlFor="breed"
-                  className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                  className="block mb-2 text-sm font-medium text-gray-700"
                 >
                   Breed <span className="text-red-500">*</span>
                 </label>
@@ -398,17 +398,17 @@ export default function AddPetModal({
                   value={breedSearch}
                   onChange={handleBreedSearchChange}
                   onFocus={() => setShowBreedDropdown(true)}
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                   placeholder="Search or select breed"
                   required
                   disabled={!formData.type}
                 />
                 {showBreedDropdown && filteredBreeds.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg dark:bg-gray-700 dark:border-gray-600 max-h-60 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                     {filteredBreeds.map((breed) => (
                       <div
                         key={breed}
-                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer"
+                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                         onClick={() => selectBreed(breed)}
                       >
                         {breed}
@@ -423,7 +423,7 @@ export default function AddPetModal({
                 <div>
                   <label
                     htmlFor="weight"
-                    className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                    className="block mb-2 text-sm font-medium text-gray-700"
                   >
                     Weight
                   </label>
@@ -434,12 +434,12 @@ export default function AddPetModal({
                       name="weight"
                       value={formData.weight}
                       onChange={handleChange}
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                       placeholder="e.g. 10"
                       min="0"
                       step="0.1"
                     />
-                    <span className="absolute right-3 top-2.5 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="absolute right-3 top-2.5 text-sm text-gray-500">
                       kg
                     </span>
                   </div>
@@ -449,7 +449,7 @@ export default function AddPetModal({
                 <div>
                   <label
                     htmlFor="color"
-                    className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                    className="block mb-2 text-sm font-medium text-gray-700"
                   >
                     Color
                   </label>
@@ -459,7 +459,7 @@ export default function AddPetModal({
                     name="color"
                     value={formData.color}
                     onChange={handleChange}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                     placeholder="e.g. Black, White, etc."
                   />
                 </div>
@@ -469,7 +469,7 @@ export default function AddPetModal({
               <div>
                 <label
                   htmlFor="medicalHistory"
-                  className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                  className="block mb-2 text-sm font-medium text-gray-700"
                 >
                   Medical History
                 </label>
@@ -479,7 +479,7 @@ export default function AddPetModal({
                   rows="3"
                   value={formData.medicalHistory}
                   onChange={handleChange}
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                   placeholder="Any known medical conditions, allergies, or treatments..."
                 ></textarea>
               </div>
@@ -489,7 +489,7 @@ export default function AddPetModal({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-5 py-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600 dark:hover:border-gray-700 dark:focus:ring-gray-700 transition-colors duration-200"
+                  className="px-5 py-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-200"
                 >
                   Cancel
                 </button>
