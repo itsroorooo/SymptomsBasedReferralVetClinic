@@ -1,62 +1,26 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createClient } from "@/utils/supabase/client";
 
 const petBreeds = {
-  dog: [
-    "Beagle",
-    "Bulldog",
-    "Chihuahua",
-    "Corgi",
-    "German Shepherd",
-    "Husky",
-    "Labrador Retriever",
-    "Poodle",
-    "Pug",
-    "Other",
-  ],
-  cat: [
-    "Bengal",
-    "Burmese",
-    "Maine Coon",
-    "Ragdoll",
-    "Scottish Fold",
-    "Siamese",
-    "Siberian",
-    "Sphynx",
-    "Persian",
-    "Other",
-  ],
-  bird: [
-    "Canary",
-    "Cockatiel",
-    "Dove",
-    "Hummingbird",
-    "Lovebird",
-    "Parrot",
-    "Pigeons",
-    "Robin",
-    "Parakeet",
-    "Other",
-  ],
-  other: ["Rabbit", "Hamster", "Guinea Pig", "Turtle", "Other"],
+  dog: ["Beagle", "Bulldog", "Chihuahua", "Corgi", "German Shepherd", "Husky", "Labrador Retriever", "Poodle", "Pug", "Other"],
+  cat: ["Bengal", "Burmese", "Maine Coon", "Ragdoll", "Scottish Fold", "Siamese", "Siberian", "Sphynx", "Persian", "Other"],
+  bird: ["Canary", "Cockatiel", "Dove", "Hummingbird", "Lovebird", "Parrot", "Pigeons", "Robin", "Parakeet", "Other"],
+  other: ["Rabbit", "Hamster", "Guinea Pig", "Turtle", "Other"]
 };
 
-export default function AddPetModal({
-  onAddPet,
-  onEditPet,
-  petToEdit,
-  onClose,
-}) {
+export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     age: "",
-    pet_type: "dog",
+    type: "dog",
     breed: "",
-    medical_history: "",
-    avatar_url: null,
+    weight: "",
+    color: "",
+    photo: null
   });
   const [previewUrl, setPreviewUrl] = useState("");
   const [availableBreeds, setAvailableBreeds] = useState(petBreeds.dog);
@@ -64,36 +28,36 @@ export default function AddPetModal({
   const [showBreedDropdown, setShowBreedDropdown] = useState(false);
   const breedDropdownRef = useRef(null);
   const fileInputRef = useRef(null);
+  const supabase = createClient();
 
   // Filter breeds based on search input
-  const filteredBreeds = availableBreeds
-    ? availableBreeds.filter((breed) =>
-        breed.toLowerCase().includes(breedSearch.toLowerCase())
-      )
-    : [];
+  const filteredBreeds = availableBreeds.filter(breed =>
+    breed.toLowerCase().includes(breedSearch.toLowerCase())
+  );
 
   useEffect(() => {
     if (petToEdit) {
       setFormData({
         name: petToEdit.name,
-        age: petToEdit.age,
-        pet_type: petToEdit.pet_type,
-        breed: petToEdit.breed,
-        medical_history: petToEdit.medical_history || "",
-        avatar_url: null,
+        age: petToEdit.age?.toString() || "",
+        type: petToEdit.pet_type || "dog",
+        breed: petToEdit.breed || "",
+        weight: petToEdit.weight?.toString() || "",
+        color: petToEdit.color || "",
+        photo: null
       });
-      setPreviewUrl(petToEdit.avatar_url || "");
+      setPreviewUrl(petToEdit.photo_url || "");
       setIsOpen(true);
     }
   }, [petToEdit]);
 
   useEffect(() => {
-    setAvailableBreeds(petBreeds[formData.pet_type]);
-    if (formData.pet_type !== (petToEdit?.pet_type || "dog")) {
-      setFormData((prev) => ({ ...prev, breed: "" }));
+    setAvailableBreeds(petBreeds[formData.type]);
+    if (formData.type !== (petToEdit?.pet_type || "dog")) {
+      setFormData(prev => ({ ...prev, breed: "" }));
       setBreedSearch("");
     }
-  }, [formData.pet_type, petToEdit]);
+  }, [formData.type, petToEdit]);
 
   useEffect(() => {
     if (isOpen) setIsAnimating(true);
@@ -102,10 +66,7 @@ export default function AddPetModal({
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        breedDropdownRef.current &&
-        !breedDropdownRef.current.contains(event.target)
-      ) {
+      if (breedDropdownRef.current && !breedDropdownRef.current.contains(event.target)) {
         setShowBreedDropdown(false);
       }
     };
@@ -121,10 +82,11 @@ export default function AddPetModal({
       setFormData({
         name: "",
         age: "",
-        pet_type: "dog",
+        type: "dog",
         breed: "",
-        medical_history: "",
-        avatar_url: null,
+        weight: "",
+        color: "",
+        photo: null
       });
       setBreedSearch("");
       onClose?.();
@@ -133,7 +95,7 @@ export default function AddPetModal({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleBreedSearchChange = (e) => {
@@ -142,7 +104,7 @@ export default function AddPetModal({
   };
 
   const selectBreed = (breed) => {
-    setFormData((prev) => ({ ...prev, breed }));
+    setFormData(prev => ({ ...prev, breed }));
     setBreedSearch(breed);
     setShowBreedDropdown(false);
   };
@@ -150,7 +112,7 @@ export default function AddPetModal({
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData((prev) => ({ ...prev, avatar_url: file }));
+      setFormData(prev => ({ ...prev, photo: file }));
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewUrl(reader.result);
@@ -163,20 +125,51 @@ export default function AddPetModal({
     fileInputRef.current.click();
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const petData = {
-      ...formData,
-      avatar_url: previewUrl,
-      id: petToEdit?.id || Date.now(),
-    };
+    
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
 
-    if (petToEdit) {
-      onEditPet(petData);
-    } else {
-      onAddPet(petData);
+      const petData = {
+        name: formData.name,
+        pet_type: formData.type,
+        breed: formData.breed,
+        age: parseInt(formData.age) || null,
+        weight: parseFloat(formData.weight) || null,
+        color: formData.color,
+        photo_url: previewUrl,
+        owner_id: user.id
+      };
+
+      let result;
+      if (petToEdit) {
+        result = await supabase
+          .from('pets')
+          .update(petData)
+          .eq('id', petToEdit.id)
+          .select();
+      } else {
+        result = await supabase
+          .from('pets')
+          .insert(petData)
+          .select();
+      }
+
+      if (result.error) throw result.error;
+
+      if (petToEdit) {
+        onEditPet(result.data[0]);
+      } else {
+        onAddPet(result.data[0]);
+      }
+      handleClose();
+    } catch (error) {
+      console.error("Error saving pet:", error);
+      alert(`Error saving pet: ${error.message}`);
     }
-    handleClose();
   };
 
   return (
@@ -186,7 +179,7 @@ export default function AddPetModal({
           onClick={() => setIsOpen(true)}
           className="ml-8 group relative inline-flex items-center justify-center px-6 py-3 overflow-hidden font-medium text-white transition-all duration-300 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 shadow-lg hover:shadow-blue-500/50"
         >
-          <span className="relative flex items-center gap-2">
+          <span className="relative flex items-center gap-2 ">
             <svg
               className="w-5 h-5"
               fill="currentColor"
@@ -202,12 +195,6 @@ export default function AddPetModal({
             Add New Pet
           </span>
         </button>
-      )}
-      {petToEdit && (
-        <p className="text-red-500">
-          Currently editing a pet. Please save or cancel before adding a new
-          one.
-        </p>
       )}
 
       {(isOpen || petToEdit) && (
@@ -370,15 +357,15 @@ export default function AddPetModal({
                 {/* Pet Type */}
                 <div>
                   <label
-                    htmlFor="pet_type"
+                    htmlFor="type"
                     className="block mb-2 text-sm font-medium text-gray-700"
                   >
                     Pet Type <span className="text-red-500">*</span>
                   </label>
                   <select
-                    id="pet_type"
-                    name="pet_type"
-                    value={formData.pet_type}
+                    id="type"
+                    name="type"
+                    value={formData.type}
                     onChange={handleChange}
                     className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                     required
@@ -409,7 +396,7 @@ export default function AddPetModal({
                   className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                   placeholder="Search or select breed"
                   required
-                  disabled={!formData.pet_type}
+                  disabled={!formData.type}
                 />
                 {showBreedDropdown && filteredBreeds.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -472,25 +459,7 @@ export default function AddPetModal({
                   />
                 </div>
               </div>
-
-              {/* Medical History */}
-              <div>
-                <label
-                  htmlFor="medical_history"
-                  className="block mb-2 text-sm font-medium text-gray-700"
-                >
-                  Medical History
-                </label>
-                <textarea
-                  id="medical_history"
-                  name="medical_history"
-                  rows="3"
-                  value={formData.medical_history}
-                  onChange={handleChange}
-                  className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                  placeholder="Any known medical conditions, allergies, or treatments..."
-                ></textarea>
-              </div>
+            
 
               {/* Form Actions */}
               <div className="flex justify-end space-x-3 pt-4">
