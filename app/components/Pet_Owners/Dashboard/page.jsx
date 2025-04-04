@@ -6,10 +6,11 @@ import Link from "next/link";
 import Sidebar from "../Sidebar/page";
 import { logout } from "@/app/logout/actions";
 import PetsPage from "../Pet/page";
+import SymptomsList from "../SymptomsList/page";
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeComponent, setActiveComponent] = useState("Dashboard");
+  const [activeComponent, setActiveComponent] = useState("Home");
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -71,9 +72,9 @@ const Dashboard = () => {
               {activeComponent === "Dashboard" && "Home"}
               {activeComponent === "pet" && "My Pets"}
               {activeComponent === "appointment" && "Appointments"}
-              {activeComponent === "logs" && "Logs"}
+
               {activeComponent === "map" && "Vet Map"}
-              {activeComponent === "symptoms" && "Symptoms"}
+              {activeComponent === "symptoms" && "SymptomsList"}
             </h1>
           </div>
 
@@ -152,7 +153,6 @@ const Dashboard = () => {
         {activeComponent === "Dashboard" && <div>Home Content</div>}
         {activeComponent === "pet" && <PetsPage />}
         {activeComponent === "appointment" && <div>Appointment Content</div>}
-        {activeComponent === "logs" && <div>Logs Content</div>}
         {activeComponent === "map" && <VetMap />}
         {activeComponent === "symptoms" && <SymptomsList />}
       </main>

@@ -99,8 +99,8 @@ const Sidebar = ({
         {/* Symptoms Link */}
         <a
           href="#"
-          onClick={() => setActiveComponent("symptoms")}
-          className="group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-white text-lg"
+          onClick={() => setActiveComponent("Symptoms")}
+          className="group flex items-center py-3 px-6 rounded-lg transition duration-200 hover:bg-blue-500 text-white text-lg"
         >
           <svg
             className="w-6 h-6 mr-3 transition duration-200 group-hover:stroke-white"
