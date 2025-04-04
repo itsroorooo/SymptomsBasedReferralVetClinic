@@ -187,9 +187,9 @@ export default function PetsPage() {
               <div className="p-5">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center space-x-4">
-                    {pet.avatar_url ? (
+                    {pet.photo_url ? (
                       <img
-                        src={pet.avatar_url}
+                        src={pet.photo_url}
                         alt={pet.name}
                         className="w-16 h-16 rounded-full object-cover border-2 border-blue-500"
                       />

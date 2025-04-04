@@ -4,13 +4,51 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 
 const petBreeds = {
-  dog: ["Beagle", "Bulldog", "Chihuahua", "Corgi", "German Shepherd", "Husky", "Labrador Retriever", "Poodle", "Pug", "Other"],
-  cat: ["Bengal", "Burmese", "Maine Coon", "Ragdoll", "Scottish Fold", "Siamese", "Siberian", "Sphynx", "Persian", "Other"],
-  bird: ["Canary", "Cockatiel", "Dove", "Hummingbird", "Lovebird", "Parrot", "Pigeons", "Robin", "Parakeet", "Other"],
-  other: ["Rabbit", "Hamster", "Guinea Pig", "Turtle", "Other"]
+  dog: [
+    "Beagle",
+    "Bulldog",
+    "Chihuahua",
+    "Corgi",
+    "German Shepherd",
+    "Husky",
+    "Labrador Retriever",
+    "Poodle",
+    "Pug",
+    "Other",
+  ],
+  cat: [
+    "Bengal",
+    "Burmese",
+    "Maine Coon",
+    "Ragdoll",
+    "Scottish Fold",
+    "Siamese",
+    "Siberian",
+    "Sphynx",
+    "Persian",
+    "Other",
+  ],
+  bird: [
+    "Canary",
+    "Cockatiel",
+    "Dove",
+    "Hummingbird",
+    "Lovebird",
+    "Parrot",
+    "Pigeons",
+    "Robin",
+    "Parakeet",
+    "Other",
+  ],
+  other: ["Rabbit", "Hamster", "Guinea Pig", "Turtle", "Other"],
 };
 
-export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose }) {
+export default function AddPetModal({
+  onAddPet,
+  onEditPet,
+  petToEdit,
+  onClose,
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [formData, setFormData] = useState({
@@ -20,7 +58,7 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
     breed: "",
     weight: "",
     color: "",
-    photo: null
+    photo: null,
   });
   const [previewUrl, setPreviewUrl] = useState("");
   const [availableBreeds, setAvailableBreeds] = useState(petBreeds.dog);
@@ -31,7 +69,7 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
   const supabase = createClient();
 
   // Filter breeds based on search input
-  const filteredBreeds = availableBreeds.filter(breed =>
+  const filteredBreeds = availableBreeds.filter((breed) =>
     breed.toLowerCase().includes(breedSearch.toLowerCase())
   );
 
@@ -44,7 +82,7 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
         breed: petToEdit.breed || "",
         weight: petToEdit.weight?.toString() || "",
         color: petToEdit.color || "",
-        photo: null
+        photo: null,
       });
       setPreviewUrl(petToEdit.photo_url || "");
       setIsOpen(true);
@@ -54,7 +92,7 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
   useEffect(() => {
     setAvailableBreeds(petBreeds[formData.type]);
     if (formData.type !== (petToEdit?.pet_type || "dog")) {
-      setFormData(prev => ({ ...prev, breed: "" }));
+      setFormData((prev) => ({ ...prev, breed: "" }));
       setBreedSearch("");
     }
   }, [formData.type, petToEdit]);
@@ -66,7 +104,10 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (breedDropdownRef.current && !breedDropdownRef.current.contains(event.target)) {
+      if (
+        breedDropdownRef.current &&
+        !breedDropdownRef.current.contains(event.target)
+      ) {
         setShowBreedDropdown(false);
       }
     };
@@ -86,7 +127,7 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
         breed: "",
         weight: "",
         color: "",
-        photo: null
+        photo: null,
       });
       setBreedSearch("");
       onClose?.();
@@ -95,7 +136,7 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleBreedSearchChange = (e) => {
@@ -104,7 +145,7 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
   };
 
   const selectBreed = (breed) => {
-    setFormData(prev => ({ ...prev, breed }));
+    setFormData((prev) => ({ ...prev, breed }));
     setBreedSearch(breed);
     setShowBreedDropdown(false);
   };
@@ -112,7 +153,7 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData(prev => ({ ...prev, photo: file }));
+      setFormData((prev) => ({ ...prev, photo: file }));
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewUrl(reader.result);
@@ -127,10 +168,12 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
       const petData = {
@@ -141,21 +184,18 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
         weight: parseFloat(formData.weight) || null,
         color: formData.color,
         photo_url: previewUrl,
-        owner_id: user.id
+        owner_id: user.id,
       };
 
       let result;
       if (petToEdit) {
         result = await supabase
-          .from('pets')
+          .from("pets")
           .update(petData)
-          .eq('id', petToEdit.id)
+          .eq("id", petToEdit.id)
           .select();
       } else {
-        result = await supabase
-          .from('pets')
-          .insert(petData)
-          .select();
+        result = await supabase.from("pets").insert(petData).select();
       }
 
       if (result.error) throw result.error;
@@ -459,7 +499,6 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
                   />
                 </div>
               </div>
-            
 
               {/* Form Actions */}
               <div className="flex justify-end space-x-3 pt-4">
