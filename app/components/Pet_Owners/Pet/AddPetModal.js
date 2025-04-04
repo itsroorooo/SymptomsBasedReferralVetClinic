@@ -53,10 +53,10 @@ export default function AddPetModal({
   const [formData, setFormData] = useState({
     name: "",
     age: "",
-    type: "dog",
+    pet_type: "dog",
     breed: "",
-    medicalHistory: "",
-    photo: null,
+    medical_history: "",
+    avatar_url: null,
   });
   const [previewUrl, setPreviewUrl] = useState("");
   const [availableBreeds, setAvailableBreeds] = useState(petBreeds.dog);
@@ -66,32 +66,34 @@ export default function AddPetModal({
   const fileInputRef = useRef(null);
 
   // Filter breeds based on search input
-  const filteredBreeds = availableBreeds.filter((breed) =>
-    breed.toLowerCase().includes(breedSearch.toLowerCase())
-  );
+  const filteredBreeds = availableBreeds
+    ? availableBreeds.filter((breed) =>
+        breed.toLowerCase().includes(breedSearch.toLowerCase())
+      )
+    : [];
 
   useEffect(() => {
     if (petToEdit) {
       setFormData({
         name: petToEdit.name,
         age: petToEdit.age,
-        type: petToEdit.type,
+        pet_type: petToEdit.pet_type,
         breed: petToEdit.breed,
-        medicalHistory: petToEdit.medicalHistory || "",
-        photo: null,
+        medical_history: petToEdit.medical_history || "",
+        avatar_url: null,
       });
-      setPreviewUrl(petToEdit.photoUrl || "");
+      setPreviewUrl(petToEdit.avatar_url || "");
       setIsOpen(true);
     }
   }, [petToEdit]);
 
   useEffect(() => {
-    setAvailableBreeds(petBreeds[formData.type]);
-    if (formData.type !== (petToEdit?.type || "dog")) {
+    setAvailableBreeds(petBreeds[formData.pet_type]);
+    if (formData.pet_type !== (petToEdit?.pet_type || "dog")) {
       setFormData((prev) => ({ ...prev, breed: "" }));
       setBreedSearch("");
     }
-  }, [formData.type, petToEdit]);
+  }, [formData.pet_type, petToEdit]);
 
   useEffect(() => {
     if (isOpen) setIsAnimating(true);
@@ -119,10 +121,10 @@ export default function AddPetModal({
       setFormData({
         name: "",
         age: "",
-        type: "dog",
+        pet_type: "dog",
         breed: "",
-        medicalHistory: "",
-        photo: null,
+        medical_history: "",
+        avatar_url: null,
       });
       setBreedSearch("");
       onClose?.();
@@ -148,7 +150,7 @@ export default function AddPetModal({
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData((prev) => ({ ...prev, photo: file }));
+      setFormData((prev) => ({ ...prev, avatar_url: file }));
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewUrl(reader.result);
@@ -165,7 +167,7 @@ export default function AddPetModal({
     e.preventDefault();
     const petData = {
       ...formData,
-      photoUrl: previewUrl,
+      avatar_url: previewUrl,
       id: petToEdit?.id || Date.now(),
     };
 
@@ -184,7 +186,7 @@ export default function AddPetModal({
           onClick={() => setIsOpen(true)}
           className="ml-8 group relative inline-flex items-center justify-center px-6 py-3 overflow-hidden font-medium text-white transition-all duration-300 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 shadow-lg hover:shadow-blue-500/50"
         >
-          <span className="relative flex items-center gap-2 ">
+          <span className="relative flex items-center gap-2">
             <svg
               className="w-5 h-5"
               fill="currentColor"
@@ -200,6 +202,12 @@ export default function AddPetModal({
             Add New Pet
           </span>
         </button>
+      )}
+      {petToEdit && (
+        <p className="text-red-500">
+          Currently editing a pet. Please save or cancel before adding a new
+          one.
+        </p>
       )}
 
       {(isOpen || petToEdit) && (
@@ -362,15 +370,15 @@ export default function AddPetModal({
                 {/* Pet Type */}
                 <div>
                   <label
-                    htmlFor="type"
+                    htmlFor="pet_type"
                     className="block mb-2 text-sm font-medium text-gray-700"
                   >
                     Pet Type <span className="text-red-500">*</span>
                   </label>
                   <select
-                    id="type"
-                    name="type"
-                    value={formData.type}
+                    id="pet_type"
+                    name="pet_type"
+                    value={formData.pet_type}
                     onChange={handleChange}
                     className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                     required
@@ -401,7 +409,7 @@ export default function AddPetModal({
                   className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                   placeholder="Search or select breed"
                   required
-                  disabled={!formData.type}
+                  disabled={!formData.pet_type}
                 />
                 {showBreedDropdown && filteredBreeds.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -468,16 +476,16 @@ export default function AddPetModal({
               {/* Medical History */}
               <div>
                 <label
-                  htmlFor="medicalHistory"
+                  htmlFor="medical_history"
                   className="block mb-2 text-sm font-medium text-gray-700"
                 >
                   Medical History
                 </label>
                 <textarea
-                  id="medicalHistory"
-                  name="medicalHistory"
+                  id="medical_history"
+                  name="medical_history"
                   rows="3"
-                  value={formData.medicalHistory}
+                  value={formData.medical_history}
                   onChange={handleChange}
                   className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                   placeholder="Any known medical conditions, allergies, or treatments..."
