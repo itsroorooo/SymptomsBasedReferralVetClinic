@@ -20,7 +20,6 @@ export default function AddPetModal({ onAddPet, onEditPet, petToEdit, onClose })
     breed: "",
     weight: "",
     color: "",
-    medicalHistory: "",
     photo: null
   });
   const [previewUrl, setPreviewUrl] = useState("");

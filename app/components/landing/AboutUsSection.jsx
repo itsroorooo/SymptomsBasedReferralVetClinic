@@ -42,7 +42,7 @@ export default function AboutUsSection() {
       {/* Image Container (Right Side) */}
       <div className="md:w-1/2 relative flex mt-8 md:mt-0">
         {/* First Image */}
-        <div className="w-96 h-96  relative z-10 flex overflow-hidden rounded-lg shadow-lg ml-44">
+        <div className="w-96 h-96  relative z-10 flex overflow-hidden rounded-lg shadow-lg lg:ml-30 ml-38 ">
           <Image
             src="/image/deku.jpg"
             width={500}
@@ -54,7 +54,7 @@ export default function AboutUsSection() {
         </div>
 
         {/* Second Image (Overlapping) */}
-        <div className="w-96 h-96 absolute top-1/4 left-1/2 transform -translate-y-1/5 -translate-x-1/5 z-20 rounded-lg shadow-lg overflow-hidden">
+        <div className="w-96 h-96 absolute top-1/2 left-1/2 transform -translate-y-1/5 -translate-x-1/5 z-20 rounded-lg shadow-lg overflow-hidden">
           <Image
             src="/image/kuromi.jpg"
             width={384}

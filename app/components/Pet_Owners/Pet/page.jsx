@@ -54,22 +54,30 @@ export default function PetsPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      // Ensure the channel is removed only if it's still active
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 
   const handleAddPet = async (newPet) => {
     try {
+      // Create a clean pet object without any ID if it exists
+      const { id, ...petWithoutId } = newPet;
+
       const { data, error } = await supabase
         .from("pets")
-        .insert([{ some_column: "someValue" }, { some_column: "otherValue" }])
+        .insert([petWithoutId]) // Insert without the 'id' field
         .select();
 
       if (error) throw error;
-      // Real-time update will handle the state change
+
+      console.log("Pet added successfully:", data);
+      return data[0]; // Return the first (and only) inserted pet
     } catch (error) {
       console.error("Error adding pet:", error.message);
-      throw error; // Re-throw to handle in the modal
+      throw error; // Re-throw to let the calling component handle it
     }
   };
 
@@ -84,7 +92,7 @@ export default function PetsPage() {
       setPetToEdit(null);
     } catch (error) {
       console.error("Error updating pet:", error.message);
-      throw error; // Re-throw to handle in the modal
+      throw error;
     }
   };
 
@@ -179,9 +187,9 @@ export default function PetsPage() {
               <div className="p-5">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center space-x-4">
-                    {pet.photoUrl ? (
+                    {pet.avatar_url ? (
                       <img
-                        src={pet.photoUrl}
+                        src={pet.avatar_url}
                         alt={pet.name}
                         className="w-16 h-16 rounded-full object-cover border-2 border-blue-500"
                       />
@@ -261,15 +269,15 @@ export default function PetsPage() {
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Type:</span>{" "}
-                    <span className="capitalize">{pet.type}</span>
+                    <span className="capitalize">{pet.pet_type}</span>
                   </p>
-                  {pet.medicalHistory && (
+                  {pet.medical_history && (
                     <div className="mt-3">
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         Medical History
                       </h4>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {pet.medicalHistory}
+                        {pet.medical_history}
                       </p>
                     </div>
                   )}
