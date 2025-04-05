@@ -6,14 +6,64 @@ import Link from "next/link";
 import Sidebar from "../Sidebar/page";
 import { logout } from "@/app/logout/actions";
 import PetsPage from "../Pet/page";
+import { createClient } from "@/utils/supabase/client";
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeComponent, setActiveComponent] = useState("Dashboard");
+  const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
+
+  // Fetch user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        setLoading(true);
+        
+        // Get the current user's ID
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated");
+
+        // Fetch user profile from your custom tables
+        const { data, error } = await supabase
+          .from('users')
+          .select(`
+            id,
+            email,
+            pet_owner_profiles (
+              first_name,
+              last_name,
+              profile_picture_url
+            )
+          `)
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+
+        // Combine data from both tables
+        setUserProfile({
+          id: data.id,
+          email: data.email,
+          first_name: data.pet_owner_profiles?.first_name || '',
+          last_name: data.pet_owner_profiles?.last_name || '',
+          profile_picture_url: data.pet_owner_profiles?.profile_picture_url || '/default-avatar.jpg'
+        });
+
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [supabase]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -29,6 +79,14 @@ const Dashboard = () => {
 
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="font-[Poppins] h-screen">
@@ -78,72 +136,66 @@ const Dashboard = () => {
           </div>
 
           {/* User dropdown */}
-          <div className="relative flex items-center space-x-4">
-            <div className="relative">
-              <input
-                type="checkbox"
-                id="dropdownToggle"
-                className="hidden peer"
-              />
-              <label htmlFor="dropdownToggle">
-                <Image
-                  src="/image/megan.jpg"
-                  alt="Avatar dropdown"
-                  width={48}
-                  height={48}
-                  className="w-12 h-12 rounded-full cursor-pointer"
+          {userProfile && (
+            <div className="relative flex items-center space-x-4">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  id="dropdownToggle"
+                  className="hidden peer"
                 />
-              </label>
+                <label htmlFor="dropdownToggle">
+                  <Image
+                    src={userProfile.profile_picture_url}
+                    alt="User profile"
+                    width={48}
+                    height={48}
+                    className="w-12 h-12 rounded-full cursor-pointer"
+                  />
+                </label>
 
-              <div className="hidden peer-checked:block absolute right-0 mt-2 bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-44 dark:bg-gray-700 dark:divide-gray-600">
-                <div className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                  <div>Bonnie Green</div>
-                  <div className="font-medium truncate">name@flowbite.com</div>
-                </div>
+                <div className="hidden peer-checked:block absolute right-0 mt-2 bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-44 dark:bg-gray-700 dark:divide-gray-600">
+                  <div className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                    <div>{`${userProfile.first_name} ${userProfile.last_name}`}</div>
+                    <div className="font-medium truncate">{userProfile.email}</div>
+                  </div>
 
-                <ul
-                  className="py-2 text-sm text-gray-700 dark:text-gray-200"
-                  aria-labelledby="dropdownToggle"
-                >
-                  <li>
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-                    >
-                      Profile
-                    </Link>
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-                    >
-                      Settings
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-                    >
-                      Earnings
-                    </a>
-                  </li>
-                </ul>
+                  <ul
+                    className="py-2 text-sm text-gray-700 dark:text-gray-200"
+                    aria-labelledby="dropdownToggle"
+                  >
+                    <li>
+                      <Link
+                        href="/profile"
+                        className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
+                      >
+                        Profile
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/settings"
+                        className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
+                      >
+                        Settings
+                      </Link>
+                    </li>
+                  </ul>
 
-                <div className="py-1">
-                  <form action={logout}>
-                    <button
-                      type="submit"
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
-                    >
-                      Logout
-                    </button>
-                  </form>
+                  <div className="py-1">
+                    <form action={logout}>
+                      <button
+                        type="submit"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+                      >
+                        Logout
+                      </button>
+                    </form>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </header>
 
