@@ -182,7 +182,7 @@ export default function PetsPage() {
           {pets.map((pet) => (
             <div
               key={pet.id}
-              className="bg-white dark:bg-gray-700 rounded-xl shadow-md overflow-hidden transition-transform duration-300 hover:scale-105"
+              className="bg-white border-gray-300 rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
             >
               <div className="p-5">
                 <div className="flex justify-between items-start mb-4">
@@ -194,7 +194,7 @@ export default function PetsPage() {
                         className="w-16 h-16 rounded-full object-cover border-2 border-blue-500"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-gray-200flex items-center justify-center">
                         <svg
                           className="w-8 h-8 text-gray-400"
                           fill="none"
@@ -212,10 +212,10 @@ export default function PetsPage() {
                       </div>
                     )}
                     <div>
-                      <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                      <h2 className="text-xl font-semibold text-gray-800">
                         {pet.name}
                       </h2>
-                      <p className="text-gray-600 dark:text-gray-300 capitalize">
+                      <p className="text-gray-600 capitalize">
                         {pet.breed.toLowerCase()}
                       </p>
                     </div>
@@ -223,7 +223,7 @@ export default function PetsPage() {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => setPetToEdit(pet)}
-                      className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                      className="text-blue-500 hover:text-blue-700 "
                       aria-label="Edit pet"
                     >
                       <svg
@@ -243,7 +243,7 @@ export default function PetsPage() {
                     </button>
                     <button
                       onClick={() => setPetToDelete(pet.id)}
-                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      className="text-red-500 hover:text-red-700"
                       aria-label="Delete pet"
                     >
                       <svg
@@ -264,23 +264,13 @@ export default function PetsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600">
                     <span className="font-medium">Age:</span> {pet.age} years
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Type:</span>{" "}
                     <span className="capitalize">{pet.pet_type}</span>
                   </p>
-                  {pet.medical_history && (
-                    <div className="mt-3">
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Medical History
-                      </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {pet.medical_history}
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -305,7 +295,7 @@ export default function PetsPage() {
           <h3 className="mt-2 text-lg font-medium text-gray-900">
             No pets added yet
           </h3>
-          <p className="mt-1 text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-gray-500">
             Get started by adding your first pet!
           </p>
         </div>

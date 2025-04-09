@@ -10,8 +10,8 @@ export default function SignupPage() {
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [firstNameError, setFirstNameError] = useState("");
-  const [lastNameError, setLastNameError] = useState("");
+  const [first_nameError, setFirst_nameError] = useState("");
+  const [last_nameError, setLast_nameError] = useState("");
 
   const handleOAuthSignup = async (provider) => {
     setLoading(true);
@@ -25,12 +25,11 @@ export default function SignupPage() {
       setLoading(false);
     }
   };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     const formData = new FormData(event.target);
-    const firstName = formData.get("firstName");
-    const lastName = formData.get("lastName");
+    const first_name = formData.get("first_name");
+    const last_name = formData.get("last_name");
     const email = formData.get("email");
     const password = formData.get("password");
     const confirmPassword = formData.get("confirmPassword");
@@ -68,12 +67,12 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      await signup(formData);
+      const { error } = await signup(formData);
+      if (error) {
+        setEmailError(error);
+      }
     } catch (error) {
       console.error("Signup error:", error);
-      if (error.message.includes("User already registered")) {
-        setEmailError("Email already in use");
-      }
     } finally {
       setLoading(false);
     }
@@ -131,25 +130,25 @@ export default function SignupPage() {
                 {/* First Name */}
                 <div className="relative">
                   <input
-                    id="firstName"
-                    name="firstName"
+                    id="first_name"
+                    name="first_name"
                     type="text"
                     required
                     className={`peer w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 ${
-                      firstNameError ? "border-red-500" : ""
+                      first_nameError ? "border-red-500" : ""
                     }`}
                     placeholder=" "
                     aria-label="First Name"
                   />
                   <label
-                    htmlFor="firstName"
+                    htmlFor="first_name"
                     className="absolute left-2 -top-2.5 bg-white px-1 text-sm text-gray-500 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-400 peer-placeholder-shown:top-2 peer-focus:-top-2.5 peer-focus:text-sm peer-focus:text-gray-600"
                   >
                     First Name
                   </label>
-                  {firstNameError && (
+                  {first_nameError && (
                     <div className="text-red-500 text-sm mt-1">
-                      {firstNameError}
+                      {first_nameError}
                     </div>
                   )}
                 </div>
@@ -157,25 +156,25 @@ export default function SignupPage() {
                 {/* Last Name */}
                 <div className="relative">
                   <input
-                    id="lastName"
-                    name="lastName"
+                    id="last_name"
+                    name="last_name"
                     type="text"
                     required
                     className={`peer w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 ${
-                      lastNameError ? "border-red-500" : ""
+                      last_nameError ? "border-red-500" : ""
                     }`}
                     placeholder=" "
                     aria-label="Last Name"
                   />
                   <label
-                    htmlFor="lastName"
+                    htmlFor="last_name"
                     className="absolute left-2 -top-2.5 bg-white px-1 text-sm text-gray-500 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-400 peer-placeholder-shown:top-2 peer-focus:-top-2.5 peer-focus:text-sm peer-focus:text-gray-600"
                   >
                     Last Name
                   </label>
-                  {lastNameError && (
+                  {last_nameError && (
                     <div className="text-red-500 text-sm mt-1">
-                      {lastNameError}
+                      {last_nameError}
                     </div>
                   )}
                 </div>

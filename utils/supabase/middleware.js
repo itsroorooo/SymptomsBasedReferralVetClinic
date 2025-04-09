@@ -37,11 +37,11 @@ export async function updateSession(request) {
   if (
     !user &&
     !request.nextUrl.pathname.startsWith("/") &&
-    !request.nextUrl.pathname.startsWith("/")
+    !request.nextUrl.pathname.startsWith("/login")
   ) {
     // Redirect to login if user is not authenticated
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
