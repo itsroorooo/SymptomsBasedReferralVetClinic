@@ -37,7 +37,7 @@ export async function signup(formData) {
     const { error: userError } = await supabase.from("users").insert({
       id: authData.user.id,
       email: email,
-      password_hash: "", // Supabase handles auth separately
+      //  password_hash: "", // Supabase handles auth separately
       first_name: firstName,
       last_name: lastName,
       role: "pet_owner", // Default role
@@ -74,7 +74,5 @@ export async function signup(formData) {
       // Unique violation
       throw new Error("User already exists in database");
     }
-
-    throw new Error("Registration failed. Please try again.");
   }
 }

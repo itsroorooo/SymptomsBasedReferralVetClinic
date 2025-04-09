@@ -25,40 +25,42 @@ const Dashboard = () => {
     const fetchUserProfile = async () => {
       try {
         setLoading(true);
-  
+
         // Get the current user's ID
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
-        if (authError || !user) throw new Error("User not authenticated");
-  
-        // Fetch user profile from the `pet_owner_profiles` table
+        const { data: userData, error: authError } =
+          await supabase.auth.getUser();
+        if (authError || !userData?.user)
+          throw new Error("User not authenticated");
+
+        console.log("User ID:", userData.user.id); // Debugging
+
+        // Fetch user profile using "id" instead of "user_id"
         const { data, error } = await supabase
           .from("pet_owner_profiles")
           .select("first_name, last_name, profile_picture_url")
-          .eq("user_id", user.id)
+          .eq("id", userData.user.id) // Ensuring correct ID field usage
           .single();
-  
+
         if (error) throw error;
-  
-        // Set the user profile
+
+        // Ensure you use userData.user for id and email
         setUserProfile({
-          id: user.id,
-          email: user.email,
-          first_name: data.first_name || "",
-          last_name: data.last_name || "",
-          profile_picture_url: data.profile_picture_url || "/default-avatar.jpg",
+          id: userData.user.id,
+          email: userData.user.email,
+          first_name: data?.first_name || "",
+          last_name: data?.last_name || "",
+          profile_picture_url:
+            data?.profile_picture_url || "/default-avatar.jpg",
         });
-      } catch (error) {
-        console.error("Error fetching user profile:", error);
+      } catch (err) {
+        console.error("Error fetching profile:", err.message);
       } finally {
         setLoading(false);
       }
     };
-  
+
     fetchUserProfile();
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
