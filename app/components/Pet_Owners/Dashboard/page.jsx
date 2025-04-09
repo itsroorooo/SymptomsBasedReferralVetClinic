@@ -25,41 +25,30 @@ const Dashboard = () => {
     const fetchUserProfile = async () => {
       try {
         setLoading(true);
-
+  
         // Get the current user's ID
         const {
           data: { user },
+          error: authError,
         } = await supabase.auth.getUser();
-        if (!user) throw new Error("User not authenticated");
-
-        // Fetch user profile from your custom tables
+        if (authError || !user) throw new Error("User not authenticated");
+  
+        // Fetch user profile from the `pet_owner_profiles` table
         const { data, error } = await supabase
-          .from("users")
-          .select(
-            `
-            id,
-            email,
-            pet_owner_profiles (
-              first_name,
-              last_name,
-              profile_picture_url
-            )
-          `
-          )
-          .eq("id", user.id)
+          .from("pet_owner_profiles")
+          .select("first_name, last_name, profile_picture_url")
+          .eq("user_id", user.id)
           .single();
-
+  
         if (error) throw error;
-
-        // Combine data from both tables
+  
+        // Set the user profile
         setUserProfile({
-          id: data.id,
-          email: data.email,
-          first_name: data.pet_owner_profiles?.first_name || "",
-          last_name: data.pet_owner_profiles?.last_name || "",
-          profile_picture_url:
-            data.pet_owner_profiles?.profile_picture_url ||
-            "/default-avatar.jpg",
+          id: user.id,
+          email: user.email,
+          first_name: data.first_name || "",
+          last_name: data.last_name || "",
+          profile_picture_url: data.profile_picture_url || "/default-avatar.jpg",
         });
       } catch (error) {
         console.error("Error fetching user profile:", error);
@@ -67,7 +56,7 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
-
+  
     fetchUserProfile();
   }, [supabase]);
 
