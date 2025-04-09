@@ -1,58 +1,80 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 
 export async function signup(formData) {
   const supabase = await createClient();
 
-  // Data validation
-  const email = formData.get("email")?.toString().trim();
-  const password = formData.get("password")?.toString();
-  const firstName = formData.get("first_name")?.toString().trim();
-  const lastName = formData.get("last_name")?.toString().trim();
-
-  if (!email || !password || !firstName || !lastName) {
-    return { error: "All fields are required" };
+  // Verify client initialization
+  if (!supabase?.auth) {
+    throw new Error("Supabase auth module not available");
   }
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
+  try {
+    // Extract form data
+    const email = formData.get("email");
+    const password = formData.get("password");
+    const firstName = formData.get("firstName");
+    const lastName = formData.get("lastName");
+
+    // 1. Create auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      },
+    });
+
+    if (authError) throw authError;
+
+    // 2. Insert into users table (matches your schema)
+    const { error: userError } = await supabase.from("users").insert({
+      id: authData.user.id,
+      email: email,
+      password_hash: "", // Supabase handles auth separately
+      first_name: firstName,
+      last_name: lastName,
+      role: "pet_owner", // Default role
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    if (userError) throw userError;
+
+    // 3. Create pet owner profile (matches your schema)
+    const { error: profileError } = await supabase
+      .from("pet_owner_profiles")
+      .insert({
+        id: authData.user.id,
         first_name: firstName,
         last_name: lastName,
-      },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`,
-    },
-  });
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
 
-  if (error) {
+    if (profileError) throw profileError;
+
+    revalidatePath("/", "layout");
+    return redirect("/login");
+  } catch (error) {
+    console.error("Signup error:", error);
+
+    // Handle specific errors
     if (error.message.includes("User already registered")) {
-      // Check if user exists but hasn't verified email
-      const {
-        data: { users },
-        error: lookupError,
-      } = await supabase.auth.admin.listUsers();
-      const userExists = users?.some(
-        (user) => user.email === email && user.email_confirmed_at === null
-      );
-
-      if (userExists) {
-        return {
-          error:
-            "Email already registered but not verified. Check your email or request a new verification link.",
-        };
-      }
-      return { error: "Email already in use. Please login instead." };
+      throw new Error("Email already in use");
     }
-    return { error: error.message };
-  }
 
-  if (data.user && !data.user.identities?.length) {
-    return { error: "User already registered with another method" };
-  }
+    if (error.code === "23505") {
+      // Unique violation
+      throw new Error("User already exists in database");
+    }
 
-  redirect("/verify-email?email=" + encodeURIComponent(email));
+    throw new Error("Registration failed. Please try again.");
+  }
 }
