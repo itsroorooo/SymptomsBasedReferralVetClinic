@@ -4,9 +4,9 @@ import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import VetClinicAdmin from "./VetClinicAdmin";
 import UserAdmin from "./UserAdmin";
-import { createClient } from "../../utils/supabase/client"; // Import the named export
+import { createClient } from "../../utils/supabase/client";
 
-const supabase = createClient(); // Initialize the Supabase client
+const supabase = createClient();
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
@@ -21,28 +21,32 @@ export default function AdminDashboard() {
     totalVetClinics: 0,
   });
 
-  // Fetch data from Supabase
+  // Function to calculate if user is active (within 2 years)
+  const isUserActive = (user) => {
+    const lastSeenDate = user.lastSeen ? new Date(user.lastSeen) : new Date(user.signupDate);
+    const twoYearsAgo = new Date();
+    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+    return lastSeenDate >= twoYearsAgo;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch users
         const { data: usersData, error: usersError } = await supabase
-          .from("pet_owner_profiles") // Replace with your actual table name
+          .from("pet_owner_profiles")
           .select("*");
         if (usersError) throw usersError;
         setUsers(usersData);
 
-        // Fetch vet clinics
         const { data: clinicsData, error: clinicsError } = await supabase
-          .from("vetenirary_clinics") // Replace with your actual table name
+          .from("veterinary_clinics")
           .select("*");
         if (clinicsError) throw clinicsError;
         setVetClinics(clinicsData);
 
-        // Update stats
         setStats({
           totalUsers: usersData.length,
-          activeUsers: usersData.filter((user) => user.status === "active").length,
+          activeUsers: usersData.filter(isUserActive).length,
           pendingApprovals: usersData.filter((user) => user.status === "pending").length,
           totalVetClinics: clinicsData.length,
         });
@@ -64,6 +68,20 @@ export default function AdminDashboard() {
       window.history.pushState(null, "", `#${component}`);
     }
   };
+
+  // Filter users based on search term
+  const filteredUsers = users.filter(
+    (user) =>
+      (user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || "") ||
+      (user.email?.toLowerCase().includes(searchTerm.toLowerCase()) || "")
+  );
+
+  // Filter vet clinics based on search term
+  const filteredVetClinics = vetClinics.filter(
+    (clinic) =>
+      (clinic.name?.toLowerCase().includes(searchTerm.toLowerCase()) || "") ||
+      (clinic.email?.toLowerCase().includes(searchTerm.toLowerCase()) || "")
+  );
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -122,11 +140,7 @@ export default function AdminDashboard() {
         {activeComponent === "vet" && (
           <VetClinicAdmin
             searchTerm={searchTerm}
-            filteredUsers={vetClinics.filter(
-              (clinic) =>
-                clinic.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                clinic.email.toLowerCase().includes(searchTerm.toLowerCase())
-            )}
+            filteredUsers={filteredVetClinics}
             users={vetClinics}
             handleAction={(id, action) =>
               setVetClinics(
@@ -140,11 +154,8 @@ export default function AdminDashboard() {
         )}
         {activeComponent === "user" && (
           <UserAdmin
-            users={users.filter(
-              (user) =>
-                user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                user.email.toLowerCase().includes(searchTerm.toLowerCase())
-            )}
+            users={filteredUsers}
+            allUsers={users}
             handleAction={(id, action) =>
               setUsers(
                 users.map((user) =>
@@ -154,6 +165,7 @@ export default function AdminDashboard() {
             }
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
+            isUserActive={isUserActive} // Pass the active calculation function
           />
         )}
       </div>
