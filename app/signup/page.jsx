@@ -28,8 +28,8 @@ export default function SignupPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     const formData = new FormData(event.target);
-    const first_ame = formData.get("firstName");
-    const last_ame = formData.get("lastName");
+    const first_name = formData.get("firstName");
+    const last_name = formData.get("lastName");
     const email = formData.get("email");
     const password = formData.get("password");
     const confirmPassword = formData.get("confirmPassword");
@@ -67,12 +67,19 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      const { error } = await signup(formData);
-      if (error) {
-        setEmailError(error);
+      const result = await signup(formData);
+
+      if (result?.error === "email") {
+        setEmailError(result.message);
+      } else if (result?.error) {
+        // Handle other errors
+        setEmailError(result.message || "An error occurred");
       }
+
+      // If success is true, redirect happens on server side
     } catch (error) {
       console.error("Signup error:", error);
+      setEmailError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }

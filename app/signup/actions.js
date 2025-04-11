@@ -7,53 +7,55 @@ import { createClient } from "@/utils/supabase/server";
 export async function signup(formData) {
   const supabase = await createClient();
 
-  // Verify client initialization
   if (!supabase?.auth) {
-    throw new Error("Supabase auth module not available");
+    return { error: "auth", message: "Authentication service unavailable" };
   }
 
-  try {
-    // Extract form data
-    const email = formData.get("email");
-    const password = formData.get("password");
-    const firstName = formData.get("firstName");
-    const lastName = formData.get("lastName");
+  // Extract form data
+  const email = formData.get("email");
+  const password = formData.get("password");
+  const first_name = formData.get("firstName");
+  const last_name = formData.get("lastName");
 
+  // Wrap only the operations that can fail
+  try {
     // 1. Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          first_name: firstName,
-          last_name: lastName,
+          first_name,
+          last_name,
         },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`,
       },
     });
 
     if (authError) throw authError;
+    if (!authData.user) throw new Error("User creation failed");
 
-    // 2. Insert into users table (matches your schema)
+    // 2. Insert into users table
     const { error: userError } = await supabase.from("users").insert({
       id: authData.user.id,
-      email: email,
-      //  password_hash: "", // Supabase handles auth separately
-      first_name: firstName,
-      last_name: lastName,
-      role: "pet_owner", // Default role
+      email,
+      first_name,
+      last_name,
+      role: "pet_owner",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
 
     if (userError) throw userError;
 
-    // 3. Create pet owner profile (matches your schema)
+    // 3. Create pet owner profile
     const { error: profileError } = await supabase
       .from("pet_owner_profiles")
       .insert({
         id: authData.user.id,
-        first_name: firstName,
-        last_name: lastName,
+        first_name,
+        last_name,
+        profile_picture_url: "/image/default-avatar.jpg",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
@@ -61,18 +63,25 @@ export async function signup(formData) {
     if (profileError) throw profileError;
 
     revalidatePath("/", "layout");
-    return redirect("/login");
   } catch (error) {
     console.error("Signup error:", error);
 
-    // Handle specific errors
-    if (error.message.includes("User already registered")) {
-      throw new Error("Email already in use");
+    if (
+      error.message.includes("User already registered") ||
+      error.code === "23505"
+    ) {
+      return {
+        error: "email",
+        message: "Email already in use",
+      };
     }
 
-    if (error.code === "23505") {
-      // Unique violation
-      throw new Error("User already exists in database");
-    }
+    return {
+      error: "general",
+      message: "Account creation failed. Please try again.",
+    };
   }
+
+  // ✅ Only call redirect *after* the try block
+  redirect(`/verify-email?email=${encodeURIComponent(email)}`);
 }
