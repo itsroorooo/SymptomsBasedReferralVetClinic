@@ -16,7 +16,9 @@ export default function PetsPage() {
   // Get current user ID
   useEffect(() => {
     const getUserId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setUserId(user?.id || null);
     };
     getUserId();
@@ -32,7 +34,7 @@ export default function PetsPage() {
         const { data, error } = await supabase
           .from("pets")
           .select("*")
-          .eq("owner_id", userId)  // Only get pets for current user
+          .eq("owner_id", userId) // Only get pets for current user
           .order("created_at", { ascending: false });
 
         if (error) throw error;
@@ -51,28 +53,28 @@ export default function PetsPage() {
       .channel("pets-changes")
       .on(
         "postgres_changes",
-        { 
-          event: "*", 
-          schema: "public", 
+        {
+          event: "*",
+          schema: "public",
           table: "pets",
-          filter: `owner_id=eq.${userId}`  // Only listen to changes for current user
+          filter: `owner_id=eq.${userId}`, // Only listen to changes for current user
         },
         (payload) => {
           setPets((prevPets) => {
             // Handle INSERT
             if (payload.eventType === "INSERT") {
-              const exists = prevPets.some(pet => pet.id === payload.new.id);
+              const exists = prevPets.some((pet) => pet.id === payload.new.id);
               return exists ? prevPets : [payload.new, ...prevPets];
             }
             // Handle UPDATE
             else if (payload.eventType === "UPDATE") {
-              return prevPets.map(pet => 
+              return prevPets.map((pet) =>
                 pet.id === payload.new.id ? payload.new : pet
               );
             }
             // Handle DELETE
             else if (payload.eventType === "DELETE") {
-              return prevPets.filter(pet => pet.id !== payload.old.id);
+              return prevPets.filter((pet) => pet.id !== payload.old.id);
             }
             return prevPets;
           });
@@ -83,14 +85,14 @@ export default function PetsPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);  // Re-run when userId changes
+  }, [userId]); // Re-run when userId changes
 
   const handleAddPet = async (newPet) => {
     try {
       setIsAddingPet(true);
       const { data, error } = await supabase
         .from("pets")
-        .insert([{ ...newPet, owner_id: userId }])  // Ensure owner_id is set
+        .insert([{ ...newPet, owner_id: userId }]) // Ensure owner_id is set
         .select();
 
       if (error) throw error;
@@ -201,7 +203,7 @@ export default function PetsPage() {
                 onClick={confirmDelete}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-300 dark:bg-red-500 dark:hover:bg-red-600 dark:focus:ring-red-700 transition-colors"
               >
-                {loading ? 'Deleting...' : 'Delete'}
+                {loading ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>
