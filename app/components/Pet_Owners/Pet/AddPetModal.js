@@ -168,14 +168,14 @@ export default function AddPetModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     try {
       // Get current user
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
-
+  
       const petData = {
         name: formData.name,
         pet_type: formData.type,
@@ -186,25 +186,15 @@ export default function AddPetModal({
         photo_url: previewUrl,
         owner_id: user.id,
       };
-
-      let result;
+  
       if (petToEdit) {
-        result = await supabase
-          .from("pets")
-          .update(petData)
-          .eq("id", petToEdit.id)
-          .select();
+        // For editing, include the ID
+        petData.id = petToEdit.id;
+        await onEditPet(petData);
       } else {
-        result = await supabase.from("pets").insert(petData).select();
+        await onAddPet(petData);
       }
-
-      if (result.error) throw result.error;
-
-      if (petToEdit) {
-        onEditPet(result.data[0]);
-      } else {
-        onAddPet(result.data[0]);
-      }
+      
       handleClose();
     } catch (error) {
       console.error("Error saving pet:", error);

@@ -1,140 +1,170 @@
 "use client";
-
-import React, { useState, useEffect } from "react";
-import { CheckCircle, Circle } from "lucide-react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { Loader2, CheckCircle, Circle } from "lucide-react";
 
-export default function SymptomsList({ onSubmit = () => {} }) {
+export default function SymptomPage() {
   const [symptoms, setSymptoms] = useState([]);
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
+  const [petType, setPetType] = useState("");
   const [additionalInfo, setAdditionalInfo] = useState("");
-  const [symptomToEquipment, setSymptomToEquipment] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   const supabase = createClient();
 
+  // Fetch all general symptoms
   useEffect(() => {
-    const fetchSymptomsAndEquipment = async () => {
-      try {
-        setIsLoading(true);
+    const fetchSymptoms = async () => {
+      const { data, error } = await supabase
+        .from("symptoms")
+        .select("*")
+        .order("name", { ascending: true });
 
-        // Fetch symptoms
-        const { data: symptomsData, error: symptomsError } = await supabase
-          .from("symptoms")
-          .select("id, name, description");
-
-        if (symptomsError) throw symptomsError;
-
-        // Fetch symptom-equipment mapping
-        const { data: symptomEquipmentData, error: equipmentError } =
-          await supabase
-            .from("symptom_equipment")
-            .select("symptom_id, equipment (name)");
-
-        if (equipmentError) throw equipmentError;
-
-        // Process equipment mapping
-        const mapping = {};
-        symptomEquipmentData.forEach((item) => {
-          const symptomId = item.symptom_id;
-          const equipmentName = item.equipment.name;
-
-          if (!mapping[symptomId]) {
-            mapping[symptomId] = [];
-          }
-          mapping[symptomId].push(equipmentName);
-        });
-
-        // Update state
-        setSymptoms(symptomsData);
-        setSelectedSymptoms(new Array(symptomsData.length).fill(false)); // Fixed this line
-        setSymptomToEquipment(mapping);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
+      if (!error) setSymptoms(data || []);
+      setIsLoading(false);
     };
 
-    fetchSymptomsAndEquipment();
-  }, [supabase]); // Added supabase to dependency array
+    fetchSymptoms();
+  }, []);
 
-  const toggleSymptom = (index) => {
-    const updatedSymptoms = [...selectedSymptoms];
-    updatedSymptoms[index] = !updatedSymptoms[index];
-    setSelectedSymptoms(updatedSymptoms);
+  const handleSymptomToggle = (symptomId) => {
+    setSelectedSymptoms(prev => 
+      prev.includes(symptomId)
+        ? prev.filter(id => id !== symptomId)
+        : [...prev, symptomId]
+    );
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const selected = symptoms.filter((_, index) => selectedSymptoms[index]);
+    setIsSubmitting(true);
 
-    let requiredEquipment = [];
-    selected.forEach((symptom) => {
-      const equipmentList = symptomToEquipment[symptom.id] || [];
-      requiredEquipment = [
-        ...new Set([...requiredEquipment, ...equipmentList]),
-      ];
-    });
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
 
-    onSubmit({
-      selectedSymptoms: selected.map((s) => s.name),
-      requiredEquipment,
-      additionalInfo,
-    });
+      // Create consultation
+      const { data: consultation, error: consultError } = await supabase
+        .from("pet_consultations")
+        .insert({
+          owner_id: user.id,
+          pet_type: petType,
+          additional_info: additionalInfo,
+          status: "pending"
+        })
+        .select()
+        .single();
+
+      if (consultError) throw consultError;
+
+      // Link selected symptoms
+      const symptomInserts = selectedSymptoms.map(symptomId => ({
+        consultation_id: consultation.id,
+        symptom_id: symptomId
+      }));
+
+      await supabase.from("consultation_symptoms").insert(symptomInserts);
+
+      // Trigger AI diagnosis
+      const { error: aiError } = await supabase
+        .rpc('trigger_ai_diagnosis', { consultation_id: consultation.id });
+
+      if (aiError) throw aiError;
+
+      alert("Symptoms submitted! AI diagnosis will be ready shortly.");
+      
+    } catch (error) {
+      console.error("Submission error:", error);
+      alert("Error submitting symptoms");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (isLoading)
-    return <div className="text-center py-8">Loading symptoms...</div>;
-  if (error)
-    return <div className="text-center py-8 text-red-500">Error: {error}</div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin h-12 w-12 text-blue-500" />
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full h-screen flex items-center justify-center transition-colors duration-300">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white w-full max-w-6xl p-4 rounded-lg shadow-md transition-colors duration-300 mt-2"
-      >
-        <h1 className="text-2xl font-semibold text-center mb-2">
-          SYMPTOMS LIST
-        </h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 overflow-y-auto max-h-[400px]">
-          {symptoms.map((symptom, index) => (
-            <div
-              key={symptom.id}
-              className="w-full border border-gray-300 p-3 rounded-full cursor-pointer flex items-center justify-between transition duration-200 hover:bg-gray-100"
-              onClick={() => toggleSymptom(index)}
-            >
-              <span>{symptom.name}</span>
-              {selectedSymptoms[index] ? (
-                <CheckCircle className="text-green-500" />
-              ) : (
-                <Circle className="text-gray-400" />
-              )}
-            </div>
-          ))}
+    <div className="max-w-4xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">Report Pet Symptoms</h1>
+      
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Pet Type Selection */}
+        <div className="space-y-2">
+          <label className="block font-medium">Pet Type*</label>
+          <select
+            value={petType}
+            onChange={(e) => setPetType(e.target.value)}
+            className="w-full p-3 border rounded-lg"
+            required
+          >
+            <option value="">Select pet type</option>
+            <option value="dog">Dog</option>
+            <option value="cat">Cat</option>
+            <option value="rabbit">Rabbit</option>
+            <option value="bird">Bird</option>
+          </select>
         </div>
 
-        <div className="mt-4">
-          <label className="block font-semibold mb-1">Additional info:</label>
+        {/* Symptoms Selection */}
+        <div className="space-y-2">
+          <label className="block font-medium">Select Symptoms*</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto p-2 border rounded-lg">
+            {symptoms.map(symptom => (
+              <div
+                key={symptom.id}
+                onClick={() => handleSymptomToggle(symptom.id)}
+                className={`p-3 border rounded-lg cursor-pointer flex items-center justify-between transition-colors ${
+                  selectedSymptoms.includes(symptom.id)
+                    ? "bg-blue-50 border-blue-200"
+                    : "hover:bg-gray-50"
+                }`}
+              >
+                <div>
+                  <p className="font-medium">{symptom.name}</p>
+                  <p className="text-sm text-gray-600">{symptom.description}</p>
+                </div>
+                {selectedSymptoms.includes(symptom.id) ? (
+                  <CheckCircle className="text-blue-500" />
+                ) : (
+                  <Circle className="text-gray-400" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Additional Information */}
+        <div className="space-y-2">
+          <label className="block font-medium">Additional Information</label>
           <textarea
-            className="w-full p-2 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400 dark:focus:ring-green-300 text-gray-900 dark:text-gray-100"
             value={additionalInfo}
             onChange={(e) => setAdditionalInfo(e.target.value)}
-            rows="3"
-            placeholder="Any additional details about your symptoms..."
-          ></textarea>
+            className="w-full p-3 border rounded-lg min-h-[120px]"
+            placeholder="When did symptoms start? Any other observations?"
+          />
         </div>
 
+        {/* Submit Button */}
         <button
           type="submit"
-          className="w-full mt-4 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition duration-300"
-          disabled={isLoading}
+          disabled={isSubmitting || !petType || selectedSymptoms.length === 0}
+          className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex justify-center items-center"
         >
-          {isLoading ? "Processing..." : "Submit"}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="animate-spin mr-2" />
+              Submitting...
+            </>
+          ) : (
+            "Generate AI Diagnosis"
+          )}
         </button>
       </form>
     </div>

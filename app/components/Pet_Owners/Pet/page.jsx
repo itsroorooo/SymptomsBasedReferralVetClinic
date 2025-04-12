@@ -9,17 +9,30 @@ export default function PetsPage() {
   const [petToEdit, setPetToEdit] = useState(null);
   const [petToDelete, setPetToDelete] = useState(null);
   const [loading, setLoading] = useState(true);
-  // Initialize Supabase client
+  const [isAddingPet, setIsAddingPet] = useState(false);
+  const [userId, setUserId] = useState(null);
   const supabase = createClient();
 
-  // Fetch pets from Supabase
+  // Get current user ID
   useEffect(() => {
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserId(user?.id || null);
+    };
+    getUserId();
+  }, []);
+
+  // Fetch pets from Supabase (only for current user)
+  useEffect(() => {
+    if (!userId) return;
+
     const fetchPets = async () => {
       try {
         setLoading(true);
         const { data, error } = await supabase
           .from("pets")
           .select("*")
+          .eq("owner_id", userId)  // Only get pets for current user
           .order("created_at", { ascending: false });
 
         if (error) throw error;
@@ -33,66 +46,80 @@ export default function PetsPage() {
 
     fetchPets();
 
-    // Set up real-time updates
+    // Set up real-time updates (filtered by user)
     const channel = supabase
       .channel("pets-changes")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "pets" },
+        { 
+          event: "*", 
+          schema: "public", 
+          table: "pets",
+          filter: `owner_id=eq.${userId}`  // Only listen to changes for current user
+        },
         (payload) => {
-          if (payload.eventType === "INSERT") {
-            setPets((prev) => [payload.new, ...prev]);
-          } else if (payload.eventType === "UPDATE") {
-            setPets((prev) =>
-              prev.map((pet) => (pet.id === payload.new.id ? payload.new : pet))
-            );
-          } else if (payload.eventType === "DELETE") {
-            setPets((prev) => prev.filter((pet) => pet.id !== payload.old.id));
-          }
+          setPets((prevPets) => {
+            // Handle INSERT
+            if (payload.eventType === "INSERT") {
+              const exists = prevPets.some(pet => pet.id === payload.new.id);
+              return exists ? prevPets : [payload.new, ...prevPets];
+            }
+            // Handle UPDATE
+            else if (payload.eventType === "UPDATE") {
+              return prevPets.map(pet => 
+                pet.id === payload.new.id ? payload.new : pet
+              );
+            }
+            // Handle DELETE
+            else if (payload.eventType === "DELETE") {
+              return prevPets.filter(pet => pet.id !== payload.old.id);
+            }
+            return prevPets;
+          });
         }
       )
       .subscribe();
 
     return () => {
-      // Ensure the channel is removed only if it's still active
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      supabase.removeChannel(channel);
     };
-  }, []);
+  }, [userId]);  // Re-run when userId changes
 
   const handleAddPet = async (newPet) => {
     try {
-      // Create a clean pet object without any ID if it exists
-      const { id, ...petWithoutId } = newPet;
-
+      setIsAddingPet(true);
       const { data, error } = await supabase
         .from("pets")
-        .insert([petWithoutId]) // Insert without the 'id' field
+        .insert([{ ...newPet, owner_id: userId }])  // Ensure owner_id is set
         .select();
 
       if (error) throw error;
-
-      console.log("Pet added successfully:", data);
-      return data[0]; // Return the first (and only) inserted pet
+      return data[0];
     } catch (error) {
       console.error("Error adding pet:", error.message);
-      throw error; // Re-throw to let the calling component handle it
+      throw error;
+    } finally {
+      setIsAddingPet(false);
     }
   };
 
   const handleEditPet = async (updatedPet) => {
     try {
-      const { error } = await supabase
+      setLoading(true);
+      const { data, error } = await supabase
         .from("pets")
         .update(updatedPet)
-        .eq("id", updatedPet.id);
+        .eq("id", updatedPet.id)
+        .select();
 
       if (error) throw error;
       setPetToEdit(null);
+      return data[0];
     } catch (error) {
       console.error("Error updating pet:", error.message);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -100,6 +127,7 @@ export default function PetsPage() {
     if (!petToDelete) return;
 
     try {
+      setLoading(true);
       const { error } = await supabase
         .from("pets")
         .delete()
@@ -109,6 +137,8 @@ export default function PetsPage() {
       setPetToDelete(null);
     } catch (error) {
       console.error("Error deleting pet:", error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -117,13 +147,14 @@ export default function PetsPage() {
   };
 
   return (
-    <div className="p-6 max-w-6xl">
-      <div className="flex justify-between items-center mb-8 ml-164">
+    <div className="p-6 max-w-6xl mx-auto">
+      <div className="flex justify-between items-center mb-8">
         <AddPetModal
           onAddPet={handleAddPet}
           onEditPet={handleEditPet}
           petToEdit={petToEdit}
           onClose={() => setPetToEdit(null)}
+          isSubmitting={isAddingPet || loading}
         />
       </div>
 
@@ -170,19 +201,23 @@ export default function PetsPage() {
                 onClick={confirmDelete}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-300 dark:bg-red-500 dark:hover:bg-red-600 dark:focus:ring-red-700 transition-colors"
               >
-                Delete
+                {loading ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {pets.length > 0 ? (
+      {loading && !pets.length ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      ) : pets.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {pets.map((pet) => (
             <div
               key={pet.id}
-              className="bg-white border-gray-300 rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
+              className="bg-white border border-gray-300 rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
             >
               <div className="p-5">
                 <div className="flex justify-between items-start mb-4">
@@ -194,7 +229,7 @@ export default function PetsPage() {
                         className="w-16 h-16 rounded-full object-cover border-2 border-blue-500"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-gray-200flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
                         <svg
                           className="w-8 h-8 text-gray-400"
                           fill="none"
@@ -223,8 +258,9 @@ export default function PetsPage() {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => setPetToEdit(pet)}
-                      className="text-blue-500 hover:text-blue-700 "
+                      className="text-blue-500 hover:text-blue-700"
                       aria-label="Edit pet"
+                      disabled={loading}
                     >
                       <svg
                         className="w-5 h-5"
@@ -245,6 +281,7 @@ export default function PetsPage() {
                       onClick={() => setPetToDelete(pet.id)}
                       className="text-red-500 hover:text-red-700"
                       aria-label="Delete pet"
+                      disabled={loading}
                     >
                       <svg
                         className="w-5 h-5"
@@ -267,7 +304,7 @@ export default function PetsPage() {
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Age:</span> {pet.age} years
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600">
                     <span className="font-medium">Type:</span>{" "}
                     <span className="capitalize">{pet.pet_type}</span>
                   </p>
@@ -277,7 +314,7 @@ export default function PetsPage() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 ml-115 mt-54">
+        <div className="text-center py-12">
           <svg
             className="mx-auto h-12 w-12 text-gray-400"
             fill="none"
