@@ -14,7 +14,7 @@
     "@iconify/react": "^5.2.1",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.6.1",
-    "@supabase/supabase-js": "^2.49.1",
+    "@supabase/supabase-js": "^2.49.4",
     "bcryptjs": "^3.0.2",
     "framer-motion": "^12.6.5",
     "leaflet": "^1.9.4",
