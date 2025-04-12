@@ -74,350 +74,369 @@ const countries = [
     };
   
 
-export default function VetClinicAdd({ onAddClinic, onClose }) {
-  const [newClinic, setNewClinic] = useState({
-    clinic_name: "",
-    clinic_password: "",
-    address: "",
-    city: "",
-    zip_code: "",
-    country: "",
-    province: "",
-    contact_number: "",
-    clinic_email: "",
-    website: "",
-  });
-  const [isAdding, setIsAdding] = useState(false);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewClinic((prev) => {
-      if (name === "province") {
-        return { ...prev, [name]: value, city: "" };
-      }
-      if (name === "country") {
-        return { ...prev, [name]: value, province: "", city: "" };
-      }
-      return { ...prev, [name]: value };
-    });
-  };
-
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-  setIsAdding(true);
-
-  try {
-    // Generate a unique user_id for the clinic user
-    const uniqueUserId = uuidv4();
-
-    // Insert the user into the "users" table
-    const { error: userInsertError } = await supabase.from("users").insert([
-      {
-        user_id: uniqueUserId, // Use the generated user_id
-        role: "clinic", // Set the role to "clinic"
-      },
-    ]);
-
-    if (userInsertError) {
-      console.error("Error adding user to Supabase:", userInsertError.message);
-      alert("Failed to add user. Please try again.");
-      return;
-    }
-
-    // Generate a unique clinic_id for the veterinary clinic
-    const uniqueClinicId = uuidv4();
-
-    // Insert the clinic into the "veterinary_clinics" table
-    const { error: clinicInsertError } = await supabase.from("veterinary_clinics").insert([
-      {
-        clinic_id: uniqueClinicId, // Use the generated clinic_id
-        user_id: uniqueUserId, // Reference the user_id from the "users" table
-        clinic_name: newClinic.clinic_name,
-        address: newClinic.address,
-        city: newClinic.city,
-        zip_code: newClinic.zip_code,
-        country: newClinic.country,
-        province: newClinic.province,
-        contact_number: newClinic.contact_number,
-        clinic_email: newClinic.clinic_email, // Store email here
-        clinic_password_hash: newClinic.clinic_password, // Store password hash here
-        website_link: newClinic.website,
-      },
-    ]);
-
-    if (clinicInsertError) {
-      console.error("Error adding clinic to Supabase:", clinicInsertError.message);
-      alert("Failed to add clinic. Please try again.");
-      return;
-    }
-
-    await onAddClinic(newClinic);
-
-    setNewClinic({
-      clinic_name: "",
-      clinic_password: "",
-      address: "",
-      city: "",
-      zip_code: "",
-      country: "",
-      province: "",
-      contact_number: "",
-      clinic_email: "",
-      website: "",
-    });
-
-    onClose();
-  } catch (error) {
-    console.error("Unexpected error:", error);
-    alert("An unexpected error occurred. Please try again.");
-  } finally {
-    setIsAdding(false);
-  }
-};
-
-  const getCities = () => {
-    if (newClinic.country === "Philippines" && newClinic.province) {
-      return philippineCitiesByProvince[newClinic.province] || [];
-    }
-    return [];
-  };
-
-  const cities = getCities();
-
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-50">
-        <div 
-          className="fixed inset-0 bg-gray-200 bg-opacity-75 transition-opacity" 
-          onClick={onClose}
-        ></div>
-        
-        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-y-auto max-h-[90vh]">
-          {/* Modal Header */}
-          <div className="sticky top-0 bg-white p-4 border-b flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-800">Add New Clinic</h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-500 focus:outline-none"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                xmlns="http://www.w3.org/2000/svg"
+    export default function VetClinicAdd({ onAddClinic, onClose }) {
+      const [newClinic, setNewClinic] = useState({
+        clinic_name: "",
+        clinic_password: "",
+        address: "",
+        city: "",
+        zip_code: "",
+        country: "",
+        province: "",
+        contact_number: "",
+        clinic_email: "",
+        website: "",
+      });
+      const [isAdding, setIsAdding] = useState(false);
+    
+      const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setNewClinic((prev) => {
+          if (name === "province") {
+            return { ...prev, [name]: value, city: "" };
+          }
+          if (name === "country") {
+            return { ...prev, [name]: value, province: "", city: "" };
+          }
+          return { ...prev, [name]: value };
+        });
+      };
+    
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsAdding(true);
+    
+        try {
+          // Generate a unique user_id for the clinic user
+          const uniqueUserId = uuidv4();
+    
+          // Insert the user into the "users" table
+          const { error: userInsertError } = await supabase.from("users").insert([
+            {
+              id: uniqueUserId, // Use the generated user_id
+              email: newClinic.clinic_email, // Store the clinic's email
+              password_hash: newClinic.clinic_password, // Store the clinic's password hash
+              role: "veterinary", // Set the role to "veterinary"
+            },
+          ]);
+    
+          if (userInsertError) {
+            console.error("Error adding user to Supabase:", userInsertError.message);
+            alert("Failed to add user. Please try again.");
+            return;
+          }
+    
+          // Generate a unique clinic_id for the veterinary clinic
+          const uniqueClinicId = uuidv4();
+    
+          // Insert the clinic into the "veterinary_clinics" table
+          const { error: clinicInsertError } = await supabase.from("veterinary_clinics").insert([
+            {
+              id: uniqueClinicId, // Use the generated clinic_id
+              user_id: uniqueUserId, // Reference the user_id from the "users" table
+              clinic_name: newClinic.clinic_name,
+              address: newClinic.address,
+              city: newClinic.city,
+              zip_code: newClinic.zip_code,
+              country: newClinic.country,
+              province: newClinic.province,
+              contact_number: newClinic.contact_number,
+              email: newClinic.clinic_email, // Store the clinic's email
+              website: newClinic.website,
+            },
+          ]);
+    
+          if (clinicInsertError) {
+            console.error("Error adding clinic to Supabase:", clinicInsertError.message);
+            alert("Failed to add clinic. Please try again.");
+            return;
+          }
+    
+          // Call the onAddClinic callback to update the UI
+          await onAddClinic(newClinic);
+    
+          // Reset the form
+          setNewClinic({
+            clinic_name: "",
+            clinic_password: "",
+            address: "",
+            city: "",
+            zip_code: "",
+            country: "",
+            province: "",
+            contact_number: "",
+            clinic_email: "",
+            website: "",
+          });
+    
+          // Close the modal
+          onClose();
+        } catch (error) {
+          console.error("Unexpected error:", error);
+          alert("An unexpected error occurred. Please try again.");
+        } finally {
+          setIsAdding(false);
+        }
+      };
+    
+      const getCities = () => {
+        if (newClinic.country === "Philippines" && newClinic.province) {
+          return philippineCitiesByProvince[newClinic.province] || [];
+        }
+        return [];
+      };
+    
+      const cities = getCities();
+    
+      return (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-gray-200 bg-opacity-75 transition-opacity"
+            onClick={onClose}
+          ></div>
+    
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-y-auto max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white p-4 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-800">Add New Clinic</h3>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-500 focus:outline-none"
               >
-                <path
-                  fillRule="evenodd"
-                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-          </div>
-  
-          {/* Modal Body */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {/* Clinic Name */}
-              <div className="space-y-2 sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Clinic Name *
-                </label>
-                <input
-                  type="text"
-                  name="clinic_name"
-                  value={newClinic.clinic_name}
-                  onChange={handleInputChange}
-                  required
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Email *
-                </label>
-                <input
-                  type="text"
-                  name="clinic_email"
-                  value={newClinic.clinic_email}
-                  onChange={handleInputChange}
-                  required
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Password *
-                </label>
-                <input
-                  type="text"
-                  name="clinic_password"
-                  value={newClinic.clinic_password}
-                  onChange={handleInputChange}
-                  required
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-  
-              {/* Country */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Country *
-                </label>
-                <select
-                  name="country"
-                  value={newClinic.country}
-                  onChange={handleInputChange}
-                  required
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  <option value="" disabled>Select a country</option>
-                  {countries.map((country) => (
-                    <option key={country} value={country}>{country}</option>
-                  ))}
-                </select>
-              </div>
-  
-              {/* Province */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Province *
-                </label>
-                <select
-                  name="province"
-                  value={newClinic.province}
-                  onChange={handleInputChange}
-                  required
-                  disabled={!newClinic.country || !countryProvinces[newClinic.country]}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="" disabled>
-                    {!newClinic.country 
-                      ? "Select a country first" 
-                      : !countryProvinces[newClinic.country] 
-                        ? "No provinces available" 
-                        : "Select a province"}
-                  </option>
-                  {newClinic.country && countryProvinces[newClinic.country]?.map((province) => (
-                    <option key={province} value={province}>{province}</option>
-                  ))}
-                </select>
-              </div>
-  
-              {/* City - Now a dropdown for Philippines */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  City *
-                </label>
-                {newClinic.country === "Philippines" ? (
-                  <select
-                    name="city"
-                    value={newClinic.city}
-                    onChange={handleInputChange}
-                    required
-                    disabled={!newClinic.province || cities.length === 0}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="" disabled>
-                      {!newClinic.province 
-                        ? "Select a province first" 
-                        : cities.length === 0
-                          ? "No cities available"
-                          : "Select a city"}
-                    </option>
-                    {cities.map((city) => (
-                      <option key={city} value={city}>{city}</option>
-                    ))}
-                  </select>
-                ) : (
+                  <path
+                    fillRule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+    
+            {/* Modal Body */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Clinic Name */}
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Clinic Name *
+                  </label>
                   <input
                     type="text"
-                    name="city"
-                    value={newClinic.city}
+                    name="clinic_name"
+                    value={newClinic.clinic_name}
                     onChange={handleInputChange}
                     required
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
-                )}
+                </div>
+    
+                {/* Email */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    name="clinic_email"
+                    value={newClinic.clinic_email}
+                    onChange={handleInputChange}
+                    required
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+    
+                {/* Password */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    name="clinic_password"
+                    value={newClinic.clinic_password}
+                    onChange={handleInputChange}
+                    required
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+    
+                {/* Other fields remain unchanged */}
+                {/* Country */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Country *
+                  </label>
+                  <select
+                    name="country"
+                    value={newClinic.country}
+                    onChange={handleInputChange}
+                    required
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="" disabled>
+                      Select a country
+                    </option>
+                    {countries.map((country) => (
+                      <option key={country} value={country}>
+                        {country}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+    
+                {/* Province */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Province *
+                  </label>
+                  <select
+                    name="province"
+                    value={newClinic.province}
+                    onChange={handleInputChange}
+                    required
+                    disabled={!newClinic.country || !countryProvinces[newClinic.country]}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="" disabled>
+                      {!newClinic.country
+                        ? "Select a country first"
+                        : !countryProvinces[newClinic.country]
+                        ? "No provinces available"
+                        : "Select a province"}
+                    </option>
+                    {newClinic.country &&
+                      countryProvinces[newClinic.country]?.map((province) => (
+                        <option key={province} value={province}>
+                          {province}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+    
+                {/* City */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    City *
+                  </label>
+                  {newClinic.country === "Philippines" ? (
+                    <select
+                      name="city"
+                      value={newClinic.city}
+                      onChange={handleInputChange}
+                      required
+                      disabled={!newClinic.province || cities.length === 0}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="" disabled>
+                        {!newClinic.province
+                          ? "Select a province first"
+                          : cities.length === 0
+                          ? "No cities available"
+                          : "Select a city"}
+                      </option>
+                      {cities.map((city) => (
+                        <option key={city} value={city}>
+                          {city}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      name="city"
+                      value={newClinic.city}
+                      onChange={handleInputChange}
+                      required
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  )}
+                </div>
+    
+                {/* Zip Code */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Zip Code *
+                  </label>
+                  <input
+                    type="text"
+                    name="zip_code"
+                    value={newClinic.zip_code}
+                    onChange={handleInputChange}
+                    required
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+    
+                {/* Address */}
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Address *
+                  </label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={newClinic.address}
+                    onChange={handleInputChange}
+                    required
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+    
+                {/* Contact Number */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Contact Number *
+                  </label>
+                  <input
+                    type="text"
+                    name="contact_number"
+                    value={newClinic.contact_number}
+                    onChange={handleInputChange}
+                    required
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+    
+                {/* Website */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Website
+                  </label>
+                  <input
+                    type="text"
+                    name="website"
+                    value={newClinic.website}
+                    onChange={handleInputChange}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               </div>
-  
-              {/* Other fields remain the same */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Zip Code *
-                </label>
-                <input
-                  type="text"
-                  name="zip_code"
-                  value={newClinic.zip_code}
-                  onChange={handleInputChange}
-                  required
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
+    
+              {/* Modal Footer */}
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAdding}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {isAdding ? "Adding..." : "Add Clinic"}
+                </button>
               </div>
-  
-              <div className="space-y-2 sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Address *
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  value={newClinic.address}
-                  onChange={handleInputChange}
-                  required
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-  
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Contact Number *
-                </label>
-                <input
-                  type="text"
-                  name="contact_number"
-                  value={newClinic.contact_number}
-                  onChange={handleInputChange}
-                  required
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-  
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Website
-                </label>
-                <input
-                  type="text"
-                  name="website"
-                  value={newClinic.website}
-                  onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-  
-            {/* Modal Footer */}
-            <div className="flex justify-end space-x-3 pt-4 border-t">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isAdding}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                {isAdding ? "Adding..." : "Add Clinic"}
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
-      </div>
-    );
-}
+      );
+    }
