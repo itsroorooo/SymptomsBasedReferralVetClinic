@@ -1,4 +1,3 @@
-// app/dashboard/page.jsx
 "use client";
 
 import Image from "next/image";
@@ -30,9 +29,12 @@ const Dashboard = () => {
     const verifyAndFetch = async () => {
       try {
         setLoading(true);
-        
+
         // Get the current user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
         if (authError || !user) {
           router.push("/login");
           return;
@@ -46,7 +48,9 @@ const Dashboard = () => {
           .single();
 
         if (roleError || userData?.role !== "pet_owner") {
-          router.push(userData?.role === "veterinary" ? "/vetclinic" : "/login");
+          router.push(
+            userData?.role === "veterinary" ? "/vetclinic" : "/login"
+          );
           return;
         }
 
@@ -64,7 +68,8 @@ const Dashboard = () => {
           email: user.email,
           first_name: profileData?.first_name || "",
           last_name: profileData?.last_name || "",
-          profile_picture_url: profileData?.profile_picture_url || "/default-avatar.jpg",
+          profile_picture_url:
+            profileData?.profile_picture_url || "/default-avatar.jpg",
         });
 
         setRoleVerified(true);

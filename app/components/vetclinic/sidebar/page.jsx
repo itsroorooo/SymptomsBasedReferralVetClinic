@@ -1,19 +1,16 @@
-// Sidebar.js
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import React from "react";
 
-const Sidebar = ({
+const VetSidebar = ({
   isVetSidebarOpen,
-  toggleSidebar,
   setActiveComponent,
   activeComponent,
 }) => {
   return (
     <aside
-      id="sidebar"
+      id="vetsidebar"
       className={`fixed inset-y-0 left-0 w-64 bg-gray-900 text-white transform transition-transform duration-300 ease-in-out ${
         isVetSidebarOpen ? "translate-x-0" : "-translate-x-full"
       } md:translate-x-0 z-40`}
@@ -42,21 +39,23 @@ const Sidebar = ({
         {/* Home Link */}
         <a
           href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveComponent("Dashboard");
-          }}
-          className={`flex items-center py-3 px-6 mb-2 rounded-lg transition duration-200 ${
-            activeComponent === "Dashboard"
+          onClick={() => setActiveComponent("VetDashboard")}
+          className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 hover:bg-blue-500 text-lg text-white ${
+            activeComponent === "VetDashboard"
               ? "bg-blue-500"
               : "hover:bg-blue-500"
           }`}
         >
           <svg
-            className="w-6 h-6 mr-3"
-            viewBox="0 0 24 24"
-            fill={activeComponent === "Dashboard" ? "white" : "#2196F3"}
+            className={`w-6 h-6 mr-3 ${
+              activeComponent === "VetDashboard"
+                ? "text-white"
+                : "text-blue-500 group-hover:text-white"
+            }`}
+            fill="currentColor"
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
           >
             <path
               fillRule="evenodd"
@@ -67,17 +66,22 @@ const Sidebar = ({
           Home
         </a>
 
-        {/* Pet Link */}
+        {/* Patients Link */}
         <a
           href="#"
-          onClick={() => setActiveComponent("pet")}
-          className={`group flex items-center py-3 px-6 rounded-lg transition duration-200 ${
-            activeComponent === "pet" ? "bg-blue-500" : "hover:bg-blue-500"
+          onClick={() => setActiveComponent("Patients")}
+          className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 hover:bg-blue-500 text-lg text-white ${
+            activeComponent === "Patients" ? "bg-blue-500" : "hover:bg-blue-500"
           }`}
         >
           <svg
-            className="w-6 h-6 mr-3"
-            fill={activeComponent === "pet" ? "white" : "#2196F3"}
+            className={`w-6 h-6 mr-3 ${
+              activeComponent === "Patients"
+                ? "text-white"
+                : "text-blue-500 group-hover:text-white"
+            }`}
+            fill="currentColor"
+            aria-hidden="true"
             version="1.1"
             id="Capa_1"
             xmlns="http://www.w3.org/2000/svg"
@@ -93,64 +97,48 @@ const Sidebar = ({
               <path d="M14.482,32.182c0-5.377-3.181-9.59-7.241-9.59S0,26.805,0,32.182c0,5.375,3.181,9.588,7.241,9.588 S14.482,37.557,14.482,32.182z M7.241,38.77C4.942,38.77,3,35.752,3,32.182c0-3.572,1.942-6.59,4.241-6.59 c2.299,0,4.241,3.018,4.241,6.59C11.482,35.752,9.54,38.77,7.241,38.77z"></path>
             </g>
           </svg>
-          Pet
+          Patients
         </a>
 
-        {/* Symptoms Link */}
+        {/* Equipment Link */}
         <a
           href="#"
-          onClick={() => setActiveComponent("symptoms")}
-          className={`group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-lg text-white ${
-            activeComponent === "symptoms" ? "bg-blue-500" : "hover:bg-blue-500"
+          onClick={() => setActiveComponent("Equipment")}
+          className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 hover:bg-blue-500 text-lg text-white ${
+            activeComponent === "Equipment"
+              ? "bg-blue-500"
+              : "hover:bg-blue-500"
           }`}
         >
           <svg
             className={`w-6 h-6 mr-3 ${
-              activeComponent === "symptoms"
+              activeComponent === "Equipment"
                 ? "text-white"
                 : "text-blue-500 group-hover:text-white"
             }`}
+            viewBox="0 0 512 512"
             fill="currentColor"
             aria-hidden="true"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
-              stroke="#2196F3"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="transition duration-200 group-hover:stroke-white"
-            ></path>
-            <path
-              d="M12 8V16"
-              stroke="#2196F3"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="transition duration-200 group-hover:stroke-white"
-            ></path>
-            <path
-              d="M8 12H16"
-              stroke="#2196F3"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="transition duration-200 group-hover:stroke-white"
-            ></path>
+            <path d="M500.547,414.189c-5.359-12.657-14.25-23.375-25.484-30.954c-5.969-4.047-12.625-7.188-19.734-9.25v-10.813 c0-10.828-2.203-21.234-6.203-30.656c-5.984-14.156-15.938-26.141-28.5-34.625c-12.531-8.484-27.781-13.453-44.031-13.453 c-10.813,0-21.219,2.203-30.656,6.203c-14.141,5.969-26.125,15.938-34.609,28.5c-8.484,12.531-13.469,27.781-13.453,44.031v54.032 c0,5.5-1.109,10.641-3.094,15.344c-2.984,7.063-8.016,13.125-14.328,17.375c-6.328,4.25-13.813,6.719-22.047,6.734 c-5.5,0-10.641-1.094-15.344-3.094c-7.063-2.984-13.125-8-17.391-14.328c-4.25-6.313-6.719-13.797-6.719-22.031V299.33 c15.641-1.828,30.641-5.797,44.703-11.453c29.813-11.969,55.531-31.25,75.984-53.891c10.219-11.328,19.141-23.531,26.578-36.188 c7.422-12.641,13.375-25.75,17.625-38.984c5.969-18.563,8.875-36.984,8.875-54.203c0-10.484-1.063-20.516-3.313-29.938 c-1.688-7.063-4.031-13.781-7.156-20.031c-2.344-4.703-5.141-9.125-8.453-13.172c-4.953-6.078-11.172-11.328-18.484-14.969 c-7.281-3.641-15.594-5.578-24.063-5.547V60.22c1.641,0,2.984,0.188,4.203,0.531c1.063,0.297,2.016,0.688,2.969,1.234 c1.656,0.922,3.344,2.328,5.094,4.469c2.594,3.203,5.188,8.172,7.016,14.703c1.844,6.531,2.938,14.547,2.922,23.453 c0.016,12.766-2.203,27.344-6.984,42.188c-4.375,13.656-11.391,27.875-20.594,41.344c-13.813,20.25-32.547,38.766-54.234,51.938 c-10.844,6.609-22.406,11.906-34.516,15.531c-12.094,3.625-24.719,5.625-37.813,5.625c-17.438,0-34.094-3.531-49.734-9.797 c-11.719-4.688-22.859-10.953-33.172-18.391c-15.484-11.125-29.125-24.938-40.094-39.891c-10.969-14.938-19.219-31-24.156-46.359 c-4.781-14.844-7-29.422-6.984-42.188c0-7.75,0.813-14.844,2.25-20.844c1.078-4.5,2.484-8.391,4.078-11.547 c1.188-2.375,2.453-4.344,3.719-5.891c1.922-2.344,3.766-3.766,5.609-4.672s3.766-1.438,6.563-1.438V20.955 c-5.031-0.016-9.984,0.641-14.719,1.953c-4.141,1.156-8.094,2.797-11.766,4.875c-6.406,3.609-11.875,8.484-16.344,14.016 c-6.719,8.344-11.266,18.141-14.266,28.719C7.328,81.126,5.906,92.58,5.906,104.611c0,17.219,2.906,35.641,8.875,54.203 c5.672,17.641,14.375,35.078,25.563,51.484c16.797,24.563,39.266,46.891,66.219,63.313c13.484,8.219,28.094,14.938,43.641,19.609 c9.484,2.844,19.344,4.922,29.484,6.109v117.875c0,10.813,2.203,21.203,6.188,30.641c6,14.156,15.953,26.141,28.5,34.609 c12.547,8.5,27.797,13.484,44.031,13.469c10.813,0,21.219-2.203,30.656-6.203c14.156-5.984,26.125-15.938,34.625-28.5 c8.469-12.531,13.453-27.781,13.453-44.016v-54.032c0-5.516,1.109-10.656,3.078-15.359c2.984-7.063,8.031-13.125,14.328-17.375 c6.328-4.266,13.813-6.734,22.047-6.734c5.5,0,10.656,1.094,15.359,3.094c7.047,2.984,13.125,8.016,17.375,14.313 c4.266,6.328,6.734,13.813,6.734,22.063v10.828c-2.656,0.766-5.266,1.672-7.781,2.75c-12.656,5.344-23.359,14.25-30.953,25.484 c-7.594,11.204-12.047,24.844-12.031,39.36c-0.016,9.672,1.969,18.969,5.531,27.406c5.359,12.656,14.266,23.375,25.484,30.969 c11.219,7.578,24.859,12.031,39.375,12.031c9.672,0,18.984-1.969,27.406-5.531c12.656-5.359,23.375-14.281,30.969-25.5 c7.578-11.219,12.031-24.844,12.031-39.375C506.094,431.924,504.125,422.627,500.547,414.189z M470.172,456.158 c-2.828,6.688-7.594,12.438-13.578,16.484c-5.984,4.031-13.094,6.375-20.906,6.375c-5.203,0-10.094-1.047-14.563-2.953 c-6.688-2.813-12.438-7.578-16.469-13.563s-6.375-13.094-6.375-20.906c0-5.203,1.031-10.094,2.922-14.547 c2.828-6.703,7.609-12.453,13.578-16.484c6-4.032,13.109-6.375,20.906-6.375c5.219,0,10.094,1.031,14.563,2.922 c6.688,2.829,12.438,7.594,16.484,13.579c4.031,5.984,6.359,13.109,6.375,20.906C473.094,446.814,472.063,451.689,470.172,456.158z" />
+            <path d="M124.938,76.923c6.219-4.922,9.844-12.406,9.844-20.313V25.892c0-7.922-3.625-15.406-9.844-20.328 c-6.203-4.891-14.313-6.688-22.016-4.875L82.406,5.548v71.391l20.516,4.859C110.625,83.626,118.734,81.83,124.938,76.923z" />
+            <path d="M273.688,76.923c6.203,4.906,14.313,6.703,22.031,4.875l20.5-4.859V5.548l-20.5-4.859 C288-1.124,279.891,0.673,273.688,5.564c-6.203,4.922-9.828,12.406-9.828,20.328v30.703 C263.859,64.517,267.484,72.001,273.688,76.923z" />
           </svg>
-          Symptoms
+          Equipments
         </a>
 
-        {/* Appointment Link */}
+        {/* Appointments Link */}
         <a
           href="#"
-          onClick={() => setActiveComponent("appointment")}
-          className="group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-lg text-white"
+          onClick={() => setActiveComponent("Appointments")}
+          className="group flex items-center py-3 px-6 rounded-lg transition duration-200 hover:bg-blue-500 text-lg text-white"
         >
           <svg
-            className="w-6 h-6 mr-3 transition duration-200 group-hover:stroke-white"
+            className={`w-6 h-6 mr-3 ${
+              activeComponent === "Appointments"
+                ? "text-white"
+                : "text-blue-500 group-hover:text-white"
+            }`}
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -186,42 +174,6 @@ const Sidebar = ({
           </svg>
           Appointment
         </a>
-
-        {/* Map Link */}
-        <a
-          href="#"
-          onClick={() => setActiveComponent("map")}
-          className={`group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-lg text-white ${
-            activeComponent === "map" ? "bg-blue-500" : "hover:bg-blue-500"
-          }`}
-        >
-          <svg
-            className="w-6 h-6 mr-3 transition duration-200 group-hover:stroke-white"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <g>
-              <path
-                d="M14 22H10C6.22876 22 4.34315 22 3.17157 20.8284C2 19.6569 2 17.7712 2 14V12C2 8.22876 2 6.34315 3.17157 5.17157C4.34315 4 6.22876 4 10 4H14C17.7712 4 19.6569 4 20.8284 5.17157C22 6.34315 22 8.22876 22 12V14C22 17.7712 22 19.6569 20.8284 20.8284C20.1752 21.4816 19.3001 21.7706 18 21.8985"
-                stroke="#2196F3"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="transition duration-200 group-hover:stroke-white"
-              ></path>
-              <path
-                d="M12 9H12.01M18 9C18 13.0637 13.5 15 12 18C10.5 15 6 13.0637 6 9C6 5.68629 8.68629 3 12 3C15.3137 3 18 5.68629 18 9ZM13 9C13 9.55228 12.5523 10 12 10C11.4477 10 11 9.55228 11 9C11 8.44772 11.4477 8 12 8C12.5523 8 13 8.44772 13 9Z"
-                stroke="#2196F3"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="transition duration-200 group-hover:fill-white"
-              ></path>
-            </g>
-          </svg>
-          Map
-        </a>
       </nav>
 
       {/* Underline */}
@@ -232,4 +184,4 @@ const Sidebar = ({
   );
 };
 
-export default Sidebar;
+export default VetSidebar;
