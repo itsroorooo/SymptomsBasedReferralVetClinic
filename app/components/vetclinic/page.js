@@ -7,10 +7,15 @@ import {
   CalendarIcon,
   BeakerIcon,
 } from "@heroicons/react/24/outline";
+<<<<<<<< Updated upstream:app/components/vetclinic/page.jsx
 import SidebarNav from "../../../components/veterinary-clinic/SidebarNav";
 import Header from "../../../components/veterinary-clinic/Header";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
+========
+import SidebarNav from "./sidebar"; // Updated path
+import Header from "./headers"; // Updated path
+>>>>>>>> Stashed changes:app/components/vetclinic/page.js
 
 export default function VeterinaryDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -21,10 +26,17 @@ export default function VeterinaryDashboard() {
 
   // Navigation items
   const navItems = [
+<<<<<<<< Updated upstream:app/components/vetclinic/page.jsx
     { name: "Home", href: "/veterinary-clinic", icon: HomeIcon, current: true },
     { name: "Records", href: "/veterinary-clinic/records", icon: ClipboardDocumentListIcon, current: false },
     { name: "Appointments", href: "/veterinary-clinic/appointments", icon: CalendarIcon, current: false },
     { name: "Equipment", href: "/veterinary-clinic/equipment", icon: BeakerIcon, current: false },
+========
+    { name: "Home", href: "#", icon: HomeIcon, current: true },
+    { name: "Records", href: "/vetclinic/records", icon: ClipboardDocumentListIcon, current: false },
+    { name: "Appointments", href: "/vetclinic/appointments", icon: CalendarIcon, current: false },
+    { name: "Equipment", href: "/vetclinic/equipment", icon: BeakerIcon, current: false },
+>>>>>>>> Stashed changes:app/components/vetclinic/page.js
   ];
 
   // Verify authentication and role
