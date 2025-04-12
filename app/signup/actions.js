@@ -22,7 +22,7 @@ export async function signup(formData) {
   try {
     // 🔒 Hash password manually
     const passwordHash = await bcrypt.hash(password, 10);
-
+  
     // 1. Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -35,10 +35,10 @@ export async function signup(formData) {
         emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`,
       },
     });
-
+  
     if (authError) throw authError;
     if (!authData.user) throw new Error("User creation failed");
-
+  
     // 2. Insert into users table
     const { error: userError } = await supabase.from("users").insert({
       id: authData.user.id,
@@ -51,9 +51,9 @@ export async function signup(formData) {
       is_active: false, // Mark inactive until verified
       password_hash: passwordHash,
     });
-
+  
     if (userError) throw userError;
-
+  
     // 3. Create pet owner profile
     const { error: profileError } = await supabase
       .from("pet_owner_profiles")
@@ -65,13 +65,16 @@ export async function signup(formData) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
-
+  
     if (profileError) throw profileError;
-
+  
     revalidatePath("/", "layout");
+  
+    // ✅ Redirect only after successful signup
+    redirect(`/verify-email?email=${encodeURIComponent(email)}`);
   } catch (error) {
     console.error("Signup error:", error);
-
+  
     if (
       error.message.includes("User already registered") ||
       error.code === "23505"
@@ -81,7 +84,7 @@ export async function signup(formData) {
         message: "Email already in use",
       };
     }
-
+  
     return {
       error: "general",
       message: "Account creation failed. Please try again.",
@@ -91,4 +94,3 @@ export async function signup(formData) {
   // ✅ Only call redirect after the try block
   redirect(`/verify-email?email=${encodeURIComponent(email)}`);
 }
-

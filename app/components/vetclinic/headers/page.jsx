@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation"; // Import useRouter
+import { useRouter } from "next/navigation";
 import {
   Bars3Icon,
   BellIcon,
@@ -10,7 +10,7 @@ import {
 
 export default function Header({ sidebarOpen, setSidebarOpen, title }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const router = useRouter(); // Initialize the router
+  const router = useRouter();
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
@@ -22,7 +22,7 @@ export default function Header({ sidebarOpen, setSidebarOpen, title }) {
   };
 
   const handleProfile = () => {
-    router.push("/veterinary-clinic/profile"); // Redirect to the profile page
+    router.push("/veterinary-clinic/profile");
   };
 
   return (
@@ -32,9 +32,9 @@ export default function Header({ sidebarOpen, setSidebarOpen, title }) {
 
       <button
         className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden"
-        onClick={() => setSidebarOpen(true)}
+        onClick={() => setSidebarOpen(!sidebarOpen)}  // Changed to toggle instead of just open
       >
-        <span className="sr-only">Open sidebar</span>
+        <span className="sr-only">{sidebarOpen ? 'Close' : 'Open'} sidebar</span>
         <Bars3Icon className="h-6 w-6" />
       </button>
       <div className="flex-1 px-4 flex justify-between">

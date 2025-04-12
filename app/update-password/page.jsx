@@ -1,37 +1,55 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 
-export default function ForgotPassword() {
-  const [email, setEmail] = useState("");
+export default function ResetPassword() {
+  const router = useRouter();
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", content: "" });
-
+  const [passwordError, setPasswordError] = useState("");
   const supabase = createClient();
 
-  const handleReset = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: "", content: "" });
+    setPasswordError("");
+
+    // Validate password
+    if (password !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 8) {
+      setPasswordError("Password must be at least 8 characters");
+      setLoading(false);
+      return;
+    }
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const { data, error } = await supabase.auth.updateUser({
+        password: password,
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       setMessage({
         type: "success",
-        content: "Password reset link sent to your email!",
+        content: "Password updated successfully! Redirecting...",
       });
+
+      // Redirect after 3 seconds
+      setTimeout(() => router.push("/login"), 3000);
     } catch (error) {
       setMessage({
         type: "error",
-        content: error.message || "Error sending reset link",
+        content: error.message || "Error updating password",
       });
     } finally {
       setLoading(false);
@@ -53,14 +71,14 @@ export default function ForgotPassword() {
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
             />
           </svg>
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Forgot your password?
+            Reset Password
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            No worries. Enter your email and we'll send you a reset link.
+            Enter your new password below
           </p>
         </div>
 
@@ -76,23 +94,42 @@ export default function ForgotPassword() {
           </div>
         )}
 
-        <form onSubmit={handleReset} className="mt-8 space-y-6">
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="rounded-md shadow-sm space-y-4">
             <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
+              <label htmlFor="password" className="sr-only">
+                New Password
               </label>
               <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="new-password"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm transition-all duration-200"
-                placeholder="Email address"
+                placeholder="New Password (min 8 characters)"
               />
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="sr-only">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm transition-all duration-200"
+                placeholder="Confirm Password"
+              />
+              {passwordError && (
+                <p className="mt-1 text-sm text-red-600">{passwordError}</p>
+              )}
             </div>
           </div>
 
@@ -142,7 +179,7 @@ export default function ForgotPassword() {
                   </svg>
                 )}
               </span>
-              {loading ? "Sending..." : "Send Reset Link"}
+              {loading ? "Updating..." : "Reset Password"}
             </button>
           </div>
         </form>
