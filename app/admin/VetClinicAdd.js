@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { createClient } from "../../utils/supabase/client";
 import { v4 as uuidv4 } from "uuid";
+import bcrypt from "bcryptjs";
 
 const supabase = createClient();
 
@@ -88,52 +89,51 @@ const countries = [
         website: "",
       });
       const [isAdding, setIsAdding] = useState(false);
-    
+
+      // Handle input changes
       const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setNewClinic((prev) => {
-          if (name === "province") {
-            return { ...prev, [name]: value, city: "" };
-          }
-          if (name === "country") {
-            return { ...prev, [name]: value, province: "", city: "" };
-          }
-          return { ...prev, [name]: value };
-        });
+        setNewClinic((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
       };
     
       const handleSubmit = async (e) => {
         e.preventDefault();
         setIsAdding(true);
-    
+      
         try {
+          // Hash the password before storing it
+          const hashedPassword = await bcrypt.hash(newClinic.clinic_password, 10);
+      
           // Generate a unique user_id for the clinic user
           const uniqueUserId = uuidv4();
-    
+      
           // Insert the user into the "users" table
           const { error: userInsertError } = await supabase.from("users").insert([
             {
-              id: uniqueUserId, // Use the generated user_id
-              email: newClinic.clinic_email, // Store the clinic's email
-              password_hash: newClinic.clinic_password, // Store the clinic's password hash
-              role: "veterinary", // Set the role to "veterinary"
+              id: uniqueUserId,
+              email: newClinic.clinic_email,
+              password_hash: hashedPassword,
+              role: "veterinary",
             },
           ]);
-    
+      
           if (userInsertError) {
             console.error("Error adding user to Supabase:", userInsertError.message);
             alert("Failed to add user. Please try again.");
             return;
           }
-    
+      
           // Generate a unique clinic_id for the veterinary clinic
           const uniqueClinicId = uuidv4();
-    
+      
           // Insert the clinic into the "veterinary_clinics" table
           const { error: clinicInsertError } = await supabase.from("veterinary_clinics").insert([
             {
-              id: uniqueClinicId, // Use the generated clinic_id
-              user_id: uniqueUserId, // Reference the user_id from the "users" table
+              id: uniqueClinicId,
+              user_id: uniqueUserId,
               clinic_name: newClinic.clinic_name,
               address: newClinic.address,
               city: newClinic.city,
@@ -141,20 +141,20 @@ const countries = [
               country: newClinic.country,
               province: newClinic.province,
               contact_number: newClinic.contact_number,
-              email: newClinic.clinic_email, // Store the clinic's email
+              email: newClinic.clinic_email,
               website: newClinic.website,
             },
           ]);
-    
+      
           if (clinicInsertError) {
             console.error("Error adding clinic to Supabase:", clinicInsertError.message);
             alert("Failed to add clinic. Please try again.");
             return;
           }
-    
+      
           // Call the onAddClinic callback to update the UI
-          await onAddClinic(newClinic);
-    
+          onAddClinic(newClinic); // Removed `await` here
+      
           // Reset the form
           setNewClinic({
             clinic_name: "",
@@ -168,7 +168,7 @@ const countries = [
             clinic_email: "",
             website: "",
           });
-    
+      
           // Close the modal
           onClose();
         } catch (error) {
@@ -265,8 +265,8 @@ const countries = [
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-    
-                {/* Other fields remain unchanged */}
+
+  
                 {/* Country */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">
@@ -419,24 +419,24 @@ const countries = [
               </div>
     
               {/* Modal Footer */}
-              <div className="flex justify-end space-x-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isAdding}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  {isAdding ? "Adding..." : "Add Clinic"}
-                </button>
-              </div>
-            </form>
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isAdding}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {isAdding ? "Adding..." : "Add Clinic"}
+            </button>
           </div>
-        </div>
-      );
-    }
+        </form>
+      </div>
+    </div>
+  );
+}
