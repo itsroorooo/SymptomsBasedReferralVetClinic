@@ -1,7 +1,6 @@
-// pages/index.js or app/page.js
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   HomeIcon,
   ClipboardDocumentListIcon,
@@ -10,17 +9,129 @@ import {
 } from "@heroicons/react/24/outline";
 import SidebarNav from "../../../components/veterinary-clinic/SidebarNav";
 import Header from "../../../components/veterinary-clinic/Header";
+import { createClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
 
-export default function Dashboard() {
+export default function VeterinaryDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
+  const supabase = createClient();
+  const router = useRouter();
 
   // Navigation items
   const navItems = [
-    { name: "Home", href: "#", icon: HomeIcon, current: true },
+    { name: "Home", href: "/veterinary-clinic", icon: HomeIcon, current: true },
     { name: "Records", href: "/veterinary-clinic/records", icon: ClipboardDocumentListIcon, current: false },
     { name: "Appointments", href: "/veterinary-clinic/appointments", icon: CalendarIcon, current: false },
     { name: "Equipment", href: "/veterinary-clinic/equipment", icon: BeakerIcon, current: false },
   ];
+
+  // Verify authentication and role
+  useEffect(() => {
+    let mounted = true;
+    let authSubscription;
+
+    const verifyAuthAndRole = async () => {
+      try {
+        // Check active session first
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+
+        if (sessionError || !session) {
+          console.error("Session error or no session:", sessionError?.message);
+          router.push("/login");
+          return;
+        }
+
+        // Get user role
+        const { data: userData, error: roleError } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        if (!mounted) return;
+
+        if (roleError || !userData) {
+          console.error("Role fetch error:", roleError?.message);
+          setAuthError("Failed to verify your permissions");
+          return;
+        }
+
+        console.log("User role:", userData.role);
+
+        // Handle routing based on role
+        if (userData.role === "veterinary") {
+          setLoading(false);
+        } else if (userData.role === "pet_owner") {
+          router.push("/dashboard");
+        } else {
+          setAuthError("You don't have permission to access this page");
+          await supabase.auth.signOut();
+          setTimeout(() => router.push("/login"), 3000);
+        }
+      } catch (err) {
+        console.error("Verification error:", err);
+        if (mounted) {
+          setAuthError("An unexpected error occurred");
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Set up auth state listener
+    const setupAuthListener = () => {
+      authSubscription = supabase.auth.onAuthStateChange((event, session) => {
+        if (!mounted) return;
+        
+        console.log("Auth state changed:", event);
+        
+        if (event === "SIGNED_OUT") {
+          router.push("/login");
+        } else if (session) {
+          verifyAuthAndRole();
+        }
+      }).data.subscription;
+    };
+
+    verifyAuthAndRole();
+    setupAuthListener();
+
+    return () => {
+      mounted = false;
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
+    };
+  }, [router, supabase]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col justify-center items-center h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+        <p className="text-gray-600">Verifying your credentials...</p>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="flex flex-col justify-center items-center h-screen bg-gray-50">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 max-w-md">
+          <p className="font-bold">Authentication Error</p>
+          <p>{authError}</p>
+          {authError.includes("permission") && (
+            <p className="mt-2 text-sm">Redirecting to login page...</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
@@ -36,8 +147,7 @@ export default function Dashboard() {
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-              <h1 className="text-2xl font-semibold text-gray-900 sm:block hidden">Dashboard</h1>
-              <h1 className="text-xl font-semibold text-gray-900 sm:hidden block">Dashboard</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">Veterinary Dashboard</h1>
             </div>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 mt-4">
               {/* Dashboard content */}

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import bcrypt from "bcryptjs";
 
 export async function signup(formData) {
   const supabase = await createClient();
@@ -19,6 +20,9 @@ export async function signup(formData) {
 
   // Wrap only the operations that can fail
   try {
+    // 🔒 Hash password manually
+    const passwordHash = await bcrypt.hash(password, 10);
+
     // 1. Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -44,6 +48,8 @@ export async function signup(formData) {
       role: "pet_owner",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      is_active: false, // Mark inactive until verified
+      password_hash: passwordHash,
     });
 
     if (userError) throw userError;
@@ -82,6 +88,6 @@ export async function signup(formData) {
     };
   }
 
-  // ✅ Only call redirect *after* the try block
+  // ✅ Only call redirect after the try block
   redirect(`/verify-email?email=${encodeURIComponent(email)}`);
 }

@@ -1,3 +1,4 @@
+// app/dashboard/page.jsx
 "use client";
 
 import Image from "next/image";
@@ -8,59 +9,75 @@ import { logout } from "@/app/logout/actions";
 import PetsPage from "../Pet/page";
 import SymptomsList from "../SymptomsList/page";
 import { createClient } from "@/utils/supabase/client";
+import VetMap from "../Map/page";
+import { useRouter } from "next/navigation";
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeComponent, setActiveComponent] = useState("Dashboard");
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [roleVerified, setRoleVerified] = useState(false);
   const supabase = createClient();
+  const router = useRouter();
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  // Fetch user profile data
+  // Verify user role and fetch profile
   useEffect(() => {
-    const fetchUserProfile = async () => {
+    const verifyAndFetch = async () => {
       try {
         setLoading(true);
+        
+        // Get the current user
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          router.push("/login");
+          return;
+        }
 
-        // Get the current user's ID
-        const { data: userData, error: authError } =
-          await supabase.auth.getUser();
-        if (authError || !userData?.user)
-          throw new Error("User not authenticated");
-
-        console.log("User ID:", userData.user.id); // Debugging
-
-        // Fetch user profile using "id" instead of "user_id"
-        const { data, error } = await supabase
-          .from("pet_owner_profiles")
-          .select("first_name, last_name, profile_picture_url")
-          .eq("id", userData.user.id) // Ensuring correct ID field usage
+        // Check user role
+        const { data: userData, error: roleError } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", user.id)
           .single();
 
-        if (error) throw error;
+        if (roleError || userData?.role !== "pet_owner") {
+          router.push(userData?.role === "veterinary" ? "/vetclinic" : "/login");
+          return;
+        }
 
-        // Ensure you use userData.user for id and email
+        // Fetch pet owner profile
+        const { data: profileData, error: profileError } = await supabase
+          .from("pet_owner_profiles")
+          .select("first_name, last_name, profile_picture_url")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) throw profileError;
+
         setUserProfile({
-          id: userData.user.id,
-          email: userData.user.email,
-          first_name: data?.first_name || "",
-          last_name: data?.last_name || "",
-          profile_picture_url:
-            data?.profile_picture_url || "/default-avatar.jpg",
+          id: user.id,
+          email: user.email,
+          first_name: profileData?.first_name || "",
+          last_name: profileData?.last_name || "",
+          profile_picture_url: profileData?.profile_picture_url || "/default-avatar.jpg",
         });
+
+        setRoleVerified(true);
       } catch (err) {
-        console.error("Error fetching profile:", err.message);
+        console.error("Error:", err.message);
+        router.push("/login");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUserProfile();
-  }, []);
+    verifyAndFetch();
+  }, [router, supabase]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -77,7 +94,7 @@ const Dashboard = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  if (loading) {
+  if (loading || !roleVerified) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -126,12 +143,10 @@ const Dashboard = () => {
               {activeComponent === "Dashboard" && "Home"}
               {activeComponent === "pet" && "My Pets"}
               {activeComponent === "appointment" && "Appointments"}
-
-              {activeComponent === "map" && "Vet Map"}
-              {activeComponent === "symptoms" && "SymptomsList"}
+              {activeComponent === "map" && "Available Clinics"}
+              {activeComponent === "symptoms" && "Report Pet Symptoms"}
             </h1>
           </div>
-
           {/* User dropdown */}
           {userProfile && (
             <div className="relative flex items-center space-x-4">

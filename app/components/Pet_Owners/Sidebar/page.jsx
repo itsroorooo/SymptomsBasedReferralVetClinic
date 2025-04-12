@@ -100,7 +100,7 @@ const Sidebar = ({
         <a
           href="#"
           onClick={() => setActiveComponent("symptoms")}
-          className={`group flex items-center py-3 px-6 rounded-lg transition duration-200 ${
+          className={`group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-lg text-white ${
             activeComponent === "symptoms" ? "bg-blue-500" : "hover:bg-blue-500"
           }`}
         >
@@ -187,7 +187,9 @@ const Sidebar = ({
         <a
           href="#"
           onClick={() => setActiveComponent("map")}
-          className="group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-white text-lg"
+          className={`group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-lg text-white ${
+            activeComponent === "map" ? "bg-blue-500" : "hover:bg-blue-500"
+          }`}
         >
           <svg
             className="w-6 h-6 mr-3 transition duration-200 group-hover:stroke-white"

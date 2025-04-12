@@ -12,7 +12,6 @@ export default function SymptomPage() {
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
 
-  // Fetch all general symptoms
   useEffect(() => {
     const fetchSymptoms = async () => {
       const { data, error } = await supabase
@@ -40,11 +39,9 @@ export default function SymptomPage() {
     setIsSubmitting(true);
 
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      // Create consultation
       const { data: consultation, error: consultError } = await supabase
         .from("pet_consultations")
         .insert({
@@ -58,7 +55,6 @@ export default function SymptomPage() {
 
       if (consultError) throw consultError;
 
-      // Link selected symptoms
       const symptomInserts = selectedSymptoms.map(symptomId => ({
         consultation_id: consultation.id,
         symptom_id: symptomId
@@ -66,7 +62,6 @@ export default function SymptomPage() {
 
       await supabase.from("consultation_symptoms").insert(symptomInserts);
 
-      // Trigger AI diagnosis
       const { error: aiError } = await supabase
         .rpc('trigger_ai_diagnosis', { consultation_id: consultation.id });
 
@@ -84,89 +79,114 @@ export default function SymptomPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="animate-spin h-12 w-12 text-blue-500" />
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+        <Loader2 className="animate-spin h-16 w-16 text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Report Pet Symptoms</h1>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Pet Type Selection */}
-        <div className="space-y-2">
-          <label className="block font-medium">Pet Type*</label>
-          <select
-            value={petType}
-            onChange={(e) => setPetType(e.target.value)}
-            className="w-full p-3 border rounded-lg"
-            required
-          >
-            <option value="">Select pet type</option>
-            <option value="dog">Dog</option>
-            <option value="cat">Cat</option>
-            <option value="rabbit">Rabbit</option>
-            <option value="bird">Bird</option>
-          </select>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">
+            Pet Health <span className="text-blue-600">Diagnosis</span>
+          </h1>
+          <p className="text-lg text-gray-600">
+            Help your pet feel better with AI-powered analysis
+          </p>
         </div>
 
-        {/* Symptoms Selection */}
-        <div className="space-y-2">
-          <label className="block font-medium">Select Symptoms*</label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto p-2 border rounded-lg">
-            {symptoms.map(symptom => (
-              <div
-                key={symptom.id}
-                onClick={() => handleSymptomToggle(symptom.id)}
-                className={`p-3 border rounded-lg cursor-pointer flex items-center justify-between transition-colors ${
-                  selectedSymptoms.includes(symptom.id)
-                    ? "bg-blue-50 border-blue-200"
-                    : "hover:bg-gray-50"
-                }`}
-              >
-                <div>
-                  <p className="font-medium">{symptom.name}</p>
-                  <p className="text-sm text-gray-600">{symptom.description}</p>
-                </div>
-                {selectedSymptoms.includes(symptom.id) ? (
-                  <CheckCircle className="text-blue-500" />
-                ) : (
-                  <Circle className="text-gray-400" />
-                )}
-              </div>
-            ))}
+        <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+          {/* Pet Type Selection */}
+          <div className="space-y-3">
+            <label className="block text-lg font-semibold text-gray-800">
+              What type of pet do you have?<span className="text-red-500">*</span>
+            </label>
+            <select
+              value={petType}
+              onChange={(e) => setPetType(e.target.value)}
+              className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white text-gray-700 font-medium"
+              required
+            >
+              <option value="" hidden disabled>
+                Select your pet type...
+              </option>
+              <option value="dog">Dog</option>
+              <option value="cat">Cat</option>
+              <option value="rabbit">Rabbit</option>
+              <option value="bird">Bird</option>
+            </select>
           </div>
-        </div>
 
-        {/* Additional Information */}
-        <div className="space-y-2">
-          <label className="block font-medium">Additional Information</label>
-          <textarea
-            value={additionalInfo}
-            onChange={(e) => setAdditionalInfo(e.target.value)}
-            className="w-full p-3 border rounded-lg min-h-[120px]"
-            placeholder="When did symptoms start? Any other observations?"
-          />
-        </div>
+          {/* Symptoms Selection */}
+          <div className="space-y-3">
+            <label className="block text-lg font-semibold text-gray-800">
+              Select observed symptoms<span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-3 border-2 border-gray-200 rounded-xl scrollbar-thin scrollbar-thumb-blue-300 scrollbar-track-blue-50">
+              {symptoms.map((symptom) => (
+                <div
+                  key={symptom.id}
+                  onClick={() => handleSymptomToggle(symptom.id)}
+                  className={`p-4 border-2 rounded-xl cursor-pointer flex items-start justify-between transition-all ${
+                    selectedSymptoms.includes(symptom.id)
+                      ? "bg-blue-50 border-blue-300 shadow-md"
+                      : "bg-white border-gray-200 hover:border-blue-200"
+                  }`}
+                >
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-800">{symptom.name}</p>
+                    <p className="text-sm text-gray-600 mt-1">{symptom.description}</p>
+                  </div>
+                  {selectedSymptoms.includes(symptom.id) ? (
+                    <CheckCircle className="text-blue-600 ml-2 flex-shrink-0 h-5 w-5" />
+                  ) : (
+                    <Circle className="text-gray-400 ml-2 flex-shrink-0 h-5 w-5" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={isSubmitting || !petType || selectedSymptoms.length === 0}
-          className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex justify-center items-center"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="animate-spin mr-2" />
-              Submitting...
-            </>
-          ) : (
-            "Generate AI Diagnosis"
-          )}
-        </button>
-      </form>
+          {/* Additional Information */}
+          <div className="space-y-3">
+            <label className="block text-lg font-semibold text-gray-800">
+              Additional details about your pet's condition
+            </label>
+            <textarea
+              value={additionalInfo}
+              onChange={(e) => setAdditionalInfo(e.target.value)}
+              className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all min-h-[150px]"
+              placeholder="When did symptoms start? Any behavior changes? Eating habits? Other observations..."
+            />
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isSubmitting || !petType || selectedSymptoms.length === 0}
+            className={`w-full py-4 px-6 rounded-xl text-white font-bold text-lg transition-all flex justify-center items-center ${
+              isSubmitting || !petType || selectedSymptoms.length === 0
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 shadow-lg"
+            }`}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin mr-3 h-6 w-6" />
+                Analyzing Symptoms...
+              </>
+            ) : (
+              "Get AI Diagnosis"
+            )}
+          </button>
+        </form>
+
+        <div className="mt-8 text-center text-gray-500 text-sm">
+          <p>Our AI will analyze your pet's symptoms and provide recommendations within minutes</p>
+        </div>
+      </div>
     </div>
   );
 }
