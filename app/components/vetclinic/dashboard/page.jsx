@@ -98,10 +98,7 @@ const VetClinicDashboard = () => {
           <main className="flex-1 overflow-y-auto bg-gray-50">
             {activeComponent === "VetDashboard" && <HomePage />}
             {activeComponent === "pet" && <PetsPage />}
-            {activeComponent === "appointment" && (
-              <div>Appointment Content</div>
-            )}
-            {activeComponent === "map" && <VetMap />}
+            {activeComponent === "Equipment" && <div>Appointment Content</div>}
             {activeComponent === "symptoms" && <SymptomsList />}
           </main>
         </div>

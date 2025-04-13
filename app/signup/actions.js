@@ -6,10 +6,8 @@ import { createClient } from "@/utils/supabase/server";
 import bcrypt from "bcryptjs";
 
 export async function signup(formData) {
+  const supabase = await createClient();
 
-  const supabase = createClient();
-
-  // Verify client initialization
   if (!supabase?.auth) {
     return { error: "auth", message: "Authentication service unavailable" };
   }
@@ -71,6 +69,9 @@ export async function signup(formData) {
     if (profileError) throw profileError;
 
     revalidatePath("/", "layout");
+
+    // ✅ Redirect only after successful signup
+    redirect(`/verify-email?email=${encodeURIComponent(email)}`);
   } catch (error) {
     console.error("Signup error:", error);
 
