@@ -128,11 +128,11 @@ const Dashboard = () => {
         </svg>
       </button>
 
-       {/* Main Layout Container */}
-       <div className="flex h-full">
+      {/* Main Layout Container */}
+      <div className="flex h-full">
         {/* Sidebar - fixed width when open */}
-        <div 
-          className={`${isSidebarOpen ? 'w-64' : 'w-0'} 
+        <div
+          className={`${isSidebarOpen ? "w-64" : "w-0"} 
           transition-all duration-300 ease-in-out 
           fixed md:static z-40 h-full`}
         >
@@ -145,13 +145,13 @@ const Dashboard = () => {
         </div>
 
         {/* Content Area - adjusts margin based on sidebar */}
-        <div 
+        <div
           className={`flex-1 flex flex-col h-full overflow-hidden 
-          ${isSidebarOpen ? 'md:ml-0' : 'md:ml-0'}
+          ${isSidebarOpen ? "md:ml-0" : "md:ml-0"}
           transition-all duration-300 ease-in-out`}
         >
           {/* Header */}
-          <header className="shadow-md py-3 px-5 md:px-10 bg-white">
+          <header className="shadow-md py-2 px-4 md:px-10 bg-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <h1 className="text-2xl font-bold text-blue-500">
@@ -237,7 +237,9 @@ const Dashboard = () => {
           <main className="flex-1 overflow-auto bg-gray-100">
             {activeComponent === "Dashboard" && <div>Home Content</div>}
             {activeComponent === "pet" && <PetsPage />}
-            {activeComponent === "appointment" && <div>Appointment Content</div>}
+            {activeComponent === "appointment" && (
+              <div>Appointment Content</div>
+            )}
             {activeComponent === "map" && <VetMap />}
             {activeComponent === "symptoms" && <SymptomsList />}
             {activeComponent === "profile" && (

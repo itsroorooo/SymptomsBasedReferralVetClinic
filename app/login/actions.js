@@ -11,17 +11,17 @@ export async function login(formData) {
     password: formData.get("password"),
   };
 
-  // Basic validation
   if (!data.email)
     return { error: { message: "Email is required", field: "email" } };
   if (!data.password)
     return { error: { message: "Password is required", field: "password" } };
 
   try {
-    const { error } = await supabase.auth.signInWithPassword(data);
+    const { data: authData, error } = await supabase.auth.signInWithPassword(
+      data
+    );
 
-    if (error) {
-      // Check auth.users table directly for email existence
+    if (error || !authData?.user) {
       const { data: authUser, error: authError } = await supabase
         .from("auth.users")
         .select("email")
@@ -35,8 +35,34 @@ export async function login(formData) {
       }
     }
 
+    const userId = authData.user.id;
+
+    const { data: profile, error: profileError } = await supabase
+      .from("users") // or your actual table name
+      .select("role")
+      .eq("id", userId)
+      .single();
+
+    if (profileError || !profile) {
+      console.error("Role fetch error:", profileError);
+      return {
+        error: { message: "User role not found", field: "general" },
+      };
+    }
+
+    const role = profile.role;
+
     revalidatePath("/", "layout");
-    return { success: true }; // Let client handle redirect
+
+    if (role === "user") {
+      redirect("/user");
+    } else if (role === "vet") {
+      redirect("/vetclinic");
+    } else if (role === "admin") {
+      redirect("/admin");
+    } else {
+      redirect("/"); // fallback
+    }
   } catch (error) {
     console.error("Login error:", error);
     return {

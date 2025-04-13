@@ -5,6 +5,82 @@ import { createClient } from "@/utils/supabase/client";
 
 const supabase = createClient();
 
+const DeleteConfirmationModal = ({ userId, onConfirm, onCancel }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl p-6 max-w-md w-full animate-pop-in">
+        <div className="text-center">
+          <div className="mx-auto w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-12 w-12 text-pink-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </div>
+          
+          <h3 className="text-xl font-bold text-gray-800 mb-2">Wait a second!</h3>
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to delete this user? This action can't be undone. 
+            All their pet data will be lost forever. 🐾
+          </p>
+          
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={onCancel}
+              className="px-5 py-2 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors flex items-center"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 mr-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="px-5 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 mr-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+              Yes, Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function UserAdmin({
   users = [],
   allUsers = [],
@@ -13,19 +89,20 @@ export default function UserAdmin({
   setSearchTerm,
   isUserActive,
 }) {
-  const [fetchedUsers, setFetchedUsers] = useState([]); // Renamed state variable
+  const [fetchedUsers, setFetchedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
 
-  // Fetch users from Supabase
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
 
-        // Fetch users and pet owner profiles
         const { data: usersData, error: usersError } = await supabase
           .from("users")
-          .select("id, email, first_name, last_name, role, created_at");
+          .select("id, email, first_name, last_name, role, updated_at, created_at")
+          .eq("role", "pet_owner");
 
         if (usersError) throw usersError;
 
@@ -35,7 +112,6 @@ export default function UserAdmin({
 
         if (profilesError) throw profilesError;
 
-        // Merge user data with profile data
         const mergedData = usersData.map((user) => {
           const profile = profilesData.find((p) => p.id === user.id);
           return {
@@ -44,7 +120,7 @@ export default function UserAdmin({
           };
         });
 
-        setFetchedUsers(mergedData); // Update renamed state variable
+        setFetchedUsers(mergedData);
       } catch (error) {
         console.error("Error fetching users:", error.message);
       } finally {
@@ -55,7 +131,24 @@ export default function UserAdmin({
     fetchUsers();
   }, []);
 
-  // Process users with consistent active status calculation
+  const handleDeleteClick = (userId) => {
+    setUserToDelete(userId);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      const { error } = await supabase.from("users").delete().eq("id", userToDelete);
+      if (error) throw error;
+      setFetchedUsers((prevUsers) => prevUsers.filter((user) => user.id !== userToDelete));
+    } catch (error) {
+      console.error("Error deleting user:", error.message);
+    } finally {
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+    }
+  };
+
   const processedUsers = fetchedUsers.map((user) => {
     const lastSeenDate = user.lastSeen
       ? new Date(user.lastSeen)
@@ -63,8 +156,7 @@ export default function UserAdmin({
     const today = new Date();
     const diffTime = Math.abs(today - lastSeenDate);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    // Use the passed isUserActive function if available, otherwise calculate locally
+  
     const status = isUserActive
       ? isUserActive(user)
         ? "active"
@@ -72,7 +164,7 @@ export default function UserAdmin({
       : diffDays < 730
       ? "active"
       : "inactive";
-
+  
     return {
       ...user,
       status,
@@ -81,13 +173,15 @@ export default function UserAdmin({
     };
   });
 
-  // Filter users based on search term
-  const filteredUsers = processedUsers.filter(
-    (user) =>
-      user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = processedUsers
+    .filter((user) => user.role !== "veterinary")
+    .filter(
+      (user) =>
+        `${user.first_name} ${user.last_name}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   if (loading) {
     return (
@@ -97,7 +191,6 @@ export default function UserAdmin({
     );
   }
 
-  // Calculate active users count using the same logic as dashboard
   const activeUsersCount = isUserActive
     ? allUsers.filter(isUserActive).length
     : processedUsers.filter((u) => u.status === "active").length;
@@ -116,12 +209,14 @@ export default function UserAdmin({
           </div>
           <div className="bg-green-50 p-4 rounded-lg">
             <h3 className="text-lg font-medium text-green-800">Active</h3>
-            <p className="text-2xl font-bold">{activeUsersCount}</p>
+            <p className="text-2xl font-bold">
+              {allUsers.filter(isUserActive).length}
+            </p>
           </div>
           <div className="bg-red-50 p-4 rounded-lg">
             <h3 className="text-lg font-medium text-red-800">Inactive</h3>
             <p className="text-2xl font-bold">
-              {allUsers.length - activeUsersCount}
+              {allUsers.length - allUsers.filter(isUserActive).length}
             </p>
           </div>
         </div>
@@ -137,7 +232,7 @@ export default function UserAdmin({
         <div className="mb-6">
           <input
             type="text"
-            placeholder="Search by name, email, or role..."
+            placeholder="Search by name or email..."
             className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -149,11 +244,10 @@ export default function UserAdmin({
           <table className="min-w-full bg-white">
             <thead>
               <tr className="bg-gray-200 text-gray-700">
-                <th className="py-3 px-4 text-left">First Name</th>
-                <th className="py-3 px-4 text-left">Last Name</th>
+                <th className="py-3 px-4 text-left">Full Name</th>
                 <th className="py-3 px-4 text-left">Email</th>
-                <th className="py-3 px-4 text-left">Role</th>
                 <th className="py-3 px-4 text-left">Created At</th>
+                <th className="py-3 px-4 text-left">Updated At</th>
                 <th className="py-3 px-4 text-left">Actions</th>
               </tr>
             </thead>
@@ -161,24 +255,25 @@ export default function UserAdmin({
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="py-3 px-4">{user.first_name || "N/A"}</td>
-                    <td className="py-3 px-4">{user.last_name || "N/A"}</td>
+                    <td className="py-3 px-4">
+                      {`${user.first_name || "N/A"} ${
+                        user.last_name || "N/A"
+                      }`}
+                    </td>
                     <td className="py-3 px-4">{user.email || "N/A"}</td>
-                    <td className="py-3 px-4">{user.role || "N/A"}</td>
                     <td className="py-3 px-4">
                       {user.created_at
                         ? new Date(user.created_at).toLocaleDateString()
                         : "N/A"}
                     </td>
+                    <td className="py-3 px-4">
+                      {user.updated_at
+                        ? new Date(user.updated_at).toLocaleDateString()
+                        : "N/A"}
+                    </td>
                     <td className="py-3 px-4 space-x-2">
                       <button
-                        onClick={() => handleAction(user.id, "edit")}
-                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleAction(user.id, "delete")}
+                        onClick={() => handleDeleteClick(user.id)}
                         className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
                       >
                         Delete
@@ -188,7 +283,7 @@ export default function UserAdmin({
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="py-4 text-center text-gray-500">
+                  <td colSpan="5" className="py-4 text-center text-gray-500">
                     No users found matching your search criteria
                   </td>
                 </tr>
@@ -197,6 +292,15 @@ export default function UserAdmin({
           </table>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <DeleteConfirmationModal
+          userId={userToDelete}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
     </div>
   );
-}gi
+}

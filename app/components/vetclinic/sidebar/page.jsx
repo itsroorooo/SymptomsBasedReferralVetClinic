@@ -103,16 +103,16 @@ const VetSidebar = ({
         {/* Equipment Link */}
         <a
           href="#"
-          onClick={() => setActiveComponent("Equipment")}
+          onClick={() => setActiveComponent("Equipments")}
           className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 hover:bg-blue-500 text-lg text-white ${
-            activeComponent === "Equipment"
+            activeComponent === "Equipments"
               ? "bg-blue-500"
               : "hover:bg-blue-500"
           }`}
         >
           <svg
             className={`w-6 h-6 mr-3 ${
-              activeComponent === "Equipment"
+              activeComponent === "Equipments"
                 ? "text-white"
                 : "text-blue-500 group-hover:text-white"
             }`}
