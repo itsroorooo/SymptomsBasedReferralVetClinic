@@ -6,15 +6,10 @@ import { createClient } from "@/utils/supabase/server";
 import bcrypt from "bcryptjs";
 
 export async function signup(formData) {
-<<<<<<< Updated upstream
-  const supabase = await createClient();
-
-=======
 
   const supabase = createClient();
 
   // Verify client initialization
->>>>>>> Stashed changes
   if (!supabase?.auth) {
     return { error: "auth", message: "Authentication service unavailable" };
   }
@@ -78,19 +73,6 @@ export async function signup(formData) {
     revalidatePath("/", "layout");
   } catch (error) {
     console.error("Signup error:", error);
-<<<<<<< Updated upstream
-=======
-
-    if (error.message.includes("User already registered")) {
-      // Check if user exists but hasn't verified email
-      const {
-        data: { users },
-        error: lookupError,
-      } = await supabase.auth.admin.listUsers();
-      const userExists = users?.some(
-        (user) => user.email === email && user.email_confirmed_at === null
-      );
->>>>>>> Stashed changes
 
     if (
       error.message.includes("User already registered") ||
