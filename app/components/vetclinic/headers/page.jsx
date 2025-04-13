@@ -22,7 +22,7 @@ export default function Header({ sidebarOpen, setSidebarOpen, title }) {
   };
 
   const handleProfile = () => {
-    router.push("/veterinary-clinic/profile");
+    router.push("/vetclinic/profile");
   };
 
   return (
