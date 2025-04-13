@@ -7,8 +7,8 @@ import {
   BeakerIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
-import SidebarNav from "../../../components/veterinary-clinic/SidebarNav";
-import Header from "../../../components/veterinary-clinic/Header";
+import SidebarNav from "./components/vetclinic/SidebarNav";
+import Header from "./components/vetclinic/Header";
 
 export default function RecordsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -56,10 +56,10 @@ export default function RecordsPage() {
 
   // Navigation items
   const navItems = [
-    { name: "Home", href: "/veterinary-clinic/dashboard", icon: HomeIcon, current: false },
-    { name: "Records", href: "/veterinary-clinic/records", icon: ClipboardDocumentListIcon, current: true },
-    { name: "Appointments", href: "/veterinary-clinic/appointments", icon: CalendarIcon, current: false },
-    { name: "Equipment", href: "/veterinary-clinic/equipment", icon: BeakerIcon, current: false },
+    { name: "Home", href: "/vetclinic/dashboard", icon: HomeIcon, current: false },
+    { name: "Records", href: "/vetclinic/records", icon: ClipboardDocumentListIcon, current: true },
+    { name: "Appointments", href: "/vetclinic/appointments", icon: CalendarIcon, current: false },
+    { name: "Equipment", href: "/vetclinic/equipment", icon: BeakerIcon, current: false },
   ];
 
   // Handle search functionality
