@@ -1,41 +1,112 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import VetClinicAdd from "./VetClinicAdd";
 import { createClient } from "../../utils/supabase/client";
 
 const supabase = createClient();
 
+const DeleteConfirmationModal = ({ clinic, onConfirm, onCancel }) => {
+  return (
+    <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-md p-6 max-w-md w-full animate-pop-in">
+        <div className="text-center">
+          <div className="mx-auto w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-12 w-12 text-red-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          
+          <h3 className="text-xl font-bold text-gray-800 mb-2">Confirm Deletion</h3>
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to delete <span className="font-semibold">{clinic.clinic_name}</span>? 
+            This action cannot be undone.
+          </p>
+          
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={onCancel}
+              className="px-5 py-2 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="px-5 py-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
+            >
+              Delete Clinic
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function VetClinicAdmin({ searchTerm, handleAction, setSearchTerm }) {
-  const [clinics, setClinics] = useState([]); // State to store fetched clinics
+  const [clinics, setClinics] = useState([]);
   const [selectedClinic, setSelectedClinic] = useState(null);
   const [showAddClinicModal, setShowAddClinicModal] = useState(false);
   const [showClinicDetailsModal, setShowClinicDetailsModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [clinicToDelete, setClinicToDelete] = useState(null);
 
+  // Fetch clinics from the database
+  useEffect(() => {
+    fetchClinics();
+  }, []);
 
-  const handleViewClinicDetails = (clinic) => { // Added this function
+  const fetchClinics = async () => {
+    const { data, error } = await supabase
+      .from("veterinary_clinics")
+      .select("id, clinic_name, address, city, contact_number, email");
+
+    if (error) {
+      console.error("Error fetching clinics:", error.message);
+    } else {
+      setClinics(data);
+    }
+  };
+
+  const handleViewClinicDetails = (clinic) => {
     setSelectedClinic(clinic);
     setShowClinicDetailsModal(true);
   };
 
-  // Fetch clinics from the database
-  useEffect(() => {
-    const fetchClinics = async () => {
-      const { data, error } = await supabase
+  const handleDeleteClick = (clinic) => {
+    setClinicToDelete(clinic);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      const { error } = await supabase
         .from("veterinary_clinics")
-        .select("clinic_id, clinic_name, address, city, contact_number, clinic_email"); // Removed created_at
-  
-      if (error) {
-        console.error("Error fetching clinics:", error.message);
-      } else {
-        setClinics(data);
-      }
-    };
-  
-    fetchClinics();
-  }, []);
+        .delete()
+        .eq("id", clinicToDelete.id);
+
+      if (error) throw error;
+
+      // Update UI by removing the deleted clinic
+      setClinics(clinics.filter(clinic => clinic.id !== clinicToDelete.id));
+    } catch (error) {
+      console.error("Error deleting clinic:", error.message);
+    } finally {
+      setShowDeleteModal(false);
+      setClinicToDelete(null);
+    }
+  };
 
   const handleAddNewClinic = async (clinicData) => {
     // Simulate API call
@@ -43,7 +114,7 @@ export default function VetClinicAdmin({ searchTerm, handleAction, setSearchTerm
       setTimeout(() => {
         const newClinicWithId = {
           ...clinicData,
-          id: Math.max(...users.map(u => u.id), 0) + 1
+          id: Math.max(...clinics.map(c => c.id), 0) + 1
         };
         handleAction(newClinicWithId.id, "pending");
         resolve();
@@ -63,7 +134,7 @@ export default function VetClinicAdmin({ searchTerm, handleAction, setSearchTerm
 
       {/* Clinic Details Modal */}
       {showClinicDetailsModal && selectedClinic && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-lg w-full">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Clinic Details</h2>
@@ -92,10 +163,19 @@ export default function VetClinicAdmin({ searchTerm, handleAction, setSearchTerm
               <p><strong>Address:</strong> {selectedClinic.address}</p>
               <p><strong>City:</strong> {selectedClinic.city}</p>
               <p><strong>Contact Number:</strong> {selectedClinic.contact_number}</p>
-              <p><strong>Email:</strong> {selectedClinic.clinic_email}</p>
+              <p><strong>Email:</strong> {selectedClinic.email}</p>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && clinicToDelete && (
+        <DeleteConfirmationModal
+          clinic={clinicToDelete}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowDeleteModal(false)}
+        />
       )}
 
       {/* Clinic Management Section */}
@@ -129,32 +209,71 @@ export default function VetClinicAdmin({ searchTerm, handleAction, setSearchTerm
                 <th className="py-3 px-4 text-left">Clinic Name</th>
                 <th className="py-3 px-4 text-left">Email</th>
                 <th className="py-3 px-4 text-left">Contact Number</th>
-                <th className="py-3 px-4 text-left">City</th>
-                <th className="py-3 px-4 text-left">Status</th>
+                <th className="py-3 px-4 text-left">Address</th>
                 <th className="py-3 px-4 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
               {clinics.length > 0 ? (
                 clinics.map((clinic) => (
-                  <tr key={clinic.clinic_id} className="hover:bg-gray-50">
-                    <td className="py-3 px-4">{clinic.clinic_name}</td>
-                    <td className="py-3 px-4">{clinic.clinic_email}</td>
-                    <td className="py-3 px-4">{clinic.contact_number}</td>
-                    <td className="py-3 px-4">{clinic.city}</td>
+                  <tr key={clinic.id} className="hover:bg-gray-50">
+                    <td className="py-3 px-4">{clinic.clinic_name || "N/A"}</td>
+                    <td className="py-3 px-4">{clinic.email || "N/A"}</td>
+                    <td className="py-3 px-4">{clinic.contact_number || "N/A"}</td>
+                    <td className="py-3 px-4">{clinic.address || "N/A"}</td>
                     <td className="py-3 px-4 space-x-2">
                       <button
                         onClick={() => handleViewClinicDetails(clinic)}
-                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm"
+                        className="text-blue-500 hover:text-blue-700"
+                        title="View Details"
                       >
-                        View Details
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(clinic)}
+                        className="text-red-500 hover:text-red-700"
+                        title="Delete Clinic"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="py-4 text-center text-gray-500">
+                  <td colSpan="5" className="py-4 text-center text-gray-500">
                     No clinics found.
                   </td>
                 </tr>
