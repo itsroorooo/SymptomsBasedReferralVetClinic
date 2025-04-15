@@ -23,42 +23,34 @@ const VetClinicDashboard = () => {
   };
 
   useEffect(() => {
+    // Check for existing session first
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          throw new Error("No active session");
+        }
+        
+        // If we have a session, proceed with fetching user data
+        await fetchUserData(session.user.id);
+      } catch (error) {
+        console.error("Session check error:", error);
+        setAuthError(error.message);
         router.push("/login");
-        return;
+      } finally {
+        setLoading(false);
       }
     };
 
-    checkSession();
-  }, [supabase.auth, router]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setAuthError(null);
-      
+    // Fetch user data function
+    const fetchUserData = async (userId) => {
       try {
-        // Verify session exists first
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError || !session) {
-          throw new Error(sessionError?.message || "No active session");
-        }
-
-        // Get current user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (userError || !user) {
-          throw new Error(userError?.message || "User not found");
-        }
-
-        // Fetch user profile from auth table
+        // Fetch user profile
         const { data: userData, error: profileError } = await supabase
-          .from('users') // Assuming you have a profiles table
+          .from('users')
           .select('*')
-          .eq('id', user.id)
+          .eq('id', userId)
           .single();
         
         if (profileError || !userData) {
@@ -67,33 +59,36 @@ const VetClinicDashboard = () => {
 
         setUserProfile(userData);
         
-        // Fetch clinic profile for this user
+        // Fetch clinic profile if exists
         const { data: clinicData, error: clinicError } = await supabase
           .from('veterinary_clinics')
           .select('*')
-          .eq('user_id', user.id) // Assuming there's a user_id column linking to the user
+          .eq('user_id', userId)
           .single();
         
         if (!clinicError && clinicData) {
           setClinicProfile(clinicData);
         }
       } catch (error) {
-        console.error("Authentication error:", error);
+        console.error("Data fetch error:", error);
         setAuthError(error.message);
-        router.push("/login");
-      } finally {
-        setLoading(false);
       }
     };
 
-    fetchData();
-
-    // Set up real-time auth listener
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        router.push("/login");
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          router.push("/login");
+        } else if (session) {
+          // If we get a session (including on initial load), fetch user data
+          await fetchUserData(session.user.id);
+        }
       }
-    });
+    );
+
+    // Initial session check
+    checkSession();
 
     const handleResize = () => {
       setIsVetSidebar(window.innerWidth >= 768);
@@ -103,7 +98,7 @@ const VetClinicDashboard = () => {
     handleResize();
 
     return () => {
-      authListener?.subscription.unsubscribe();
+      subscription?.unsubscribe();
       window.removeEventListener("resize", handleResize);
     };
   }, [supabase.auth, router]);
