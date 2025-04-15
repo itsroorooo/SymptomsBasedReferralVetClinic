@@ -1,0 +1,401 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import TimeSlotPicker from "./TimeSlotPicker";
+
+export default function AppointmentPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const clinicId = searchParams.get("clinic_id");
+  const [clinic, setClinic] = useState(null);
+  const [pets, setPets] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedTime, setSelectedTime] = useState(null);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({
+    ownerName: "",
+    petId: "",
+    petName: "",
+    animalType: "",
+    breed: "",
+    reason: "",
+  });
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    console.log("Initializing AppointmentPage with clinicId:", clinicId);
+
+    const fetchData = async () => {
+      try {
+        if (!clinicId) {
+          throw new Error("No clinic ID provided");
+        }
+
+        console.log("Fetching clinic data...");
+        const { data: clinicData, error: clinicError } = await supabase
+          .from("veterinary_clinics")
+          .select("*")
+          .eq("id", clinicId)
+          .single();
+
+        if (clinicError) {
+          console.error("Supabase clinic error:", clinicError);
+          throw clinicError;
+        }
+
+        if (!clinicData) {
+          throw new Error("Clinic not found in database");
+        }
+
+        console.log("Clinic data retrieved:", clinicData);
+        setClinic(clinicData);
+
+        console.log("Fetching user pets...");
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+        if (userError) {
+          throw userError;
+        }
+
+        const { data: petsData, error: petsError } = await supabase
+          .from("pets")
+          .select("*")
+          .eq("owner_id", user.id);
+
+        if (petsError) {
+          throw petsError;
+        }
+
+        console.log("Pets retrieved:", petsData);
+        setPets(petsData || []);
+      } catch (err) {
+        console.error("Error in fetchData:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [clinicId, supabase]);
+
+  useEffect(() => {
+    const fetchAvailableSlots = async () => {
+      if (!clinicId || !selectedDate) return;
+
+      try {
+        console.log("Fetching available slots...");
+        const dayOfWeek = selectedDate.getDay();
+
+        const { data: scheduleData, error: scheduleError } = await supabase
+          .from("veterinary_schedules")
+          .select("*")
+          .eq("clinic_id", clinicId)
+          .eq("day_of_week", dayOfWeek)
+          .single();
+
+        if (scheduleError) throw scheduleError;
+
+        if (!scheduleData || scheduleData.is_closed) {
+          console.log("Clinic is closed on this day");
+          setAvailableSlots([]);
+          return;
+        }
+
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from("appointments")
+          .select("start_time, end_time")
+          .eq("clinic_id", clinicId)
+          .eq("appointment_date", selectedDate.toISOString().split("T")[0])
+          .neq("status", "cancelled");
+
+        if (appointmentsError) throw appointmentsError;
+
+        const slots = generateTimeSlots(
+          scheduleData.opening_time,
+          scheduleData.closing_time,
+          appointmentsData
+        );
+
+        console.log("Available slots generated:", slots);
+        setAvailableSlots(slots);
+      } catch (err) {
+        console.error("Error fetching slots:", err);
+        setAvailableSlots([]);
+      }
+    };
+
+    fetchAvailableSlots();
+  }, [selectedDate, clinicId, supabase]);
+
+  const generateTimeSlots = (openingTime, closingTime, existingAppointments) => {
+    const slots = [];
+    const interval = 30; // 30-minute intervals
+
+    const [openHour, openMinute] = openingTime.split(":").map(Number);
+    const [closeHour, closeMinute] = closingTime.split(":").map(Number);
+
+    let currentHour = openHour;
+    let currentMinute = openMinute;
+
+    while (currentHour < closeHour || (currentHour === closeHour && currentMinute < closeMinute)) {
+      const startTime = `${String(currentHour).padStart(2, "0")}:${String(currentMinute).padStart(2, "0")}`;
+
+      currentMinute += interval;
+      if (currentMinute >= 60) {
+        currentHour += 1;
+        currentMinute -= 60;
+      }
+      const endTime = `${String(currentHour).padStart(2, "0")}:${String(currentMinute).padStart(2, "0")}`;
+
+      const isAvailable = !existingAppointments.some(
+        (appt) => appt.start_time <= startTime && appt.end_time > startTime
+      );
+
+      slots.push({
+        start: startTime,
+        end: endTime,
+        available: isAvailable,
+      });
+    }
+
+    return slots;
+  };
+
+  const handlePetSelect = (e) => {
+    const petId = e.target.value;
+    const selectedPet = pets.find((pet) => pet.id === petId);
+
+    if (selectedPet) {
+      setFormData({
+        ...formData,
+        petId,
+        petName: selectedPet.name,
+        animalType: selectedPet.pet_type,
+        breed: selectedPet.breed || "",
+      });
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!selectedDate || !selectedTime || !formData.petId) {
+      alert("Please select a date, time, and pet");
+      return;
+    }
+
+    try {
+      console.log("Starting appointment booking...");
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError) throw userError;
+
+      console.log("Creating consultation record...");
+      const { data: consultation, error: consultationError } = await supabase
+        .from("pet_consultations")
+        .insert({
+          pet_id: formData.petId,
+          owner_id: user.id,
+          additional_info: formData.reason,
+        })
+        .select()
+        .single();
+
+      if (consultationError) throw consultationError;
+
+      console.log("Creating appointment record...");
+      const appointmentDate = selectedDate.toISOString().split("T")[0];
+      const { error: appointmentError } = await supabase
+        .from("appointments")
+        .insert({
+          consultation_id: consultation.id,
+          clinic_id: clinicId,
+          pet_id: formData.petId,
+          owner_id: user.id,
+          appointment_date: appointmentDate,
+          start_time: selectedTime.start,
+          end_time: selectedTime.end,
+          status: "pending",
+        });
+
+      if (appointmentError) throw appointmentError;
+
+      console.log("Appointment booked successfully!");
+      alert("Appointment booked successfully!");
+      router.push("/Pet_Owners/Map");
+    } catch (error) {
+      console.error("Booking error:", error);
+      alert(`Failed to book appointment: ${error.message}`);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen p-4">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          Error: {error}
+        </div>
+        <button
+          onClick={() => router.push("/Pet_Owners/Map")}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Back to Map
+        </button>
+      </div>
+    );
+  }
+
+  if (!clinic) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen p-4">
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+          Clinic not found for ID: {clinicId}
+        </div>
+        <button
+          onClick={() => router.push("/Pet_Owners/Map")}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Back to Map
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto p-4 font-[Poppins]">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold">{clinic.clinic_name}</h1>
+          <p className="text-gray-600">{clinic.address}, {clinic.city}</p>
+          <p className="text-sm text-gray-500 mt-2">Clinic ID: {clinicId}</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block mb-1 font-medium">Appointment Date</label>
+            <DatePicker
+              selected={selectedDate}
+              onChange={(date) => setSelectedDate(date)}
+              minDate={new Date()}
+              filterDate={(date) => {
+                const day = date.getDay();
+                return day !== 0 && day !== 6;
+              }}
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block mb-1 font-medium">Available Time Slots</label>
+            <TimeSlotPicker
+              slots={availableSlots}
+              selectedTime={selectedTime}
+              onSelectTime={setSelectedTime}
+            />
+          </div>
+
+          <div>
+            <label className="block mb-1 font-medium">Your Name</label>
+            <input
+              type="text"
+              name="ownerName"
+              value={formData.ownerName}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block mb-1 font-medium">Select Pet</label>
+            <select
+              value={formData.petId}
+              onChange={handlePetSelect}
+              className="w-full p-2 border rounded"
+              required
+            >
+              <option value="">-- Select Pet --</option>
+              {pets.map((pet) => (
+                <option key={pet.id} value={pet.id}>
+                  {pet.name} ({pet.pet_type})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block mb-1 font-medium">Pet Name</label>
+            <input
+              type="text"
+              name="petName"
+              value={formData.petName}
+              className="w-full p-2 border rounded bg-gray-100"
+              readOnly
+            />
+          </div>
+
+          <div>
+            <label className="block mb-1 font-medium">Animal Type</label>
+            <input
+              type="text"
+              name="animalType"
+              value={formData.animalType}
+              className="w-full p-2 border rounded bg-gray-100"
+              readOnly
+            />
+          </div>
+
+          <div>
+            <label className="block mb-1 font-medium">Breed</label>
+            <input
+              type="text"
+              name="breed"
+              value={formData.breed}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+
+          <div>
+            <label className="block mb-1 font-medium">Reason for Visit</label>
+            <textarea
+              name="reason"
+              value={formData.reason}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded"
+              rows="3"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Confirm Booking
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}

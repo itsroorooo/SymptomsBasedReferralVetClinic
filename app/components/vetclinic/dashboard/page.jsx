@@ -5,10 +5,16 @@ import VetSidebar from "../sidebar/page";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import HomePage from "../home/page";
+import Image from "next/image";
 
 const VetClinicDashboard = () => {
   const [isVetSidebarOpen, setIsVetSidebar] = useState(false);
   const [activeComponent, setActiveComponent] = useState("VetDashboard");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+  const [clinicProfile, setClinicProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
   const supabase = createClient();
   const router = useRouter();
 
@@ -17,19 +23,120 @@ const VetClinicDashboard = () => {
   };
 
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsVetSidebar(true);
-      } else {
-        setIsVetSidebar(false);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+        return;
       }
+    };
+
+    checkSession();
+  }, [supabase.auth, router]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setAuthError(null);
+      
+      try {
+        // Verify session exists first
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session) {
+          throw new Error(sessionError?.message || "No active session");
+        }
+
+        // Get current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          throw new Error(userError?.message || "User not found");
+        }
+
+        // Fetch user profile from auth table
+        const { data: userData, error: profileError } = await supabase
+          .from('users') // Assuming you have a profiles table
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError || !userData) {
+          throw new Error(profileError?.message || "Profile not found");
+        }
+
+        setUserProfile(userData);
+        
+        // Fetch clinic profile for this user
+        const { data: clinicData, error: clinicError } = await supabase
+          .from('veterinary_clinics')
+          .select('*')
+          .eq('user_id', user.id) // Assuming there's a user_id column linking to the user
+          .single();
+        
+        if (!clinicError && clinicData) {
+          setClinicProfile(clinicData);
+        }
+      } catch (error) {
+        console.error("Authentication error:", error);
+        setAuthError(error.message);
+        router.push("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    // Set up real-time auth listener
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        router.push("/login");
+      }
+    });
+
+    const handleResize = () => {
+      setIsVetSidebar(window.innerWidth >= 768);
     };
 
     window.addEventListener("resize", handleResize);
     handleResize();
 
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    return () => {
+      authListener?.subscription.unsubscribe();
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [supabase.auth, router]);
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  if (loading) {
+    return (
+      <div className="font-[Poppins] h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="font-[Poppins] h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-md">
+          <h2 className="text-xl font-bold text-red-500 mb-4">Session Expired</h2>
+          <p className="mb-4">Your session has expired. Please log in again.</p>
+          <button
+            onClick={() => router.push("/login")}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="font-[Poppins] h-screen bg-gray-50">
@@ -75,6 +182,7 @@ const VetClinicDashboard = () => {
             toggleSidebar={toggleSidebar}
             setActiveComponent={setActiveComponent}
             activeComponent={activeComponent}
+            clinicProfile={clinicProfile}
           />
         </div>
 
@@ -89,8 +197,112 @@ const VetClinicDashboard = () => {
                   {activeComponent === "Patients" && "Patients"}
                   {activeComponent === "Equipments" && "Equipments"}
                   {activeComponent === "Appointments" && "Appointments"}
+                  {activeComponent === "Schedule" && "Clinic Schedule"}
                 </h1>
               </div>
+              
+              {/* User Dropdown */}
+              {userProfile && (
+                <div className="relative flex items-center space-x-4">
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="focus:outline-none"
+                    >
+                      {clinicProfile?.logo_url ? (
+                        <Image
+                          src={clinicProfile.logo_url}
+                          alt="Clinic logo"
+                          width={48}
+                          height={48}
+                          className="w-12 h-12 rounded-full cursor-pointer object-cover"
+                        />
+                      ) : userProfile.avatar_url ? (
+                        <Image
+                          src={userProfile.avatar_url}
+                          alt="User profile"
+                          width={48}
+                          height={48}
+                          className="w-12 h-12 rounded-full cursor-pointer"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold cursor-pointer">
+                          {userProfile.first_name?.[0]}{userProfile.last_name?.[0]}
+                        </div>
+                      )}
+                    </button>
+
+                    {isDropdownOpen && (
+                      <div className="absolute right-0 mt-2 bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-64">
+                        <div className="px-4 py-3 text-sm text-gray-900">
+                          <div className="font-medium">{`${userProfile.first_name} ${userProfile.last_name}`}</div>
+                          <div className="truncate">{userProfile.email}</div>
+                        </div>
+
+                        <ul className="py-2 text-sm text-gray-700">
+                          <li>
+                            <button
+                              onClick={() => {
+                                setActiveComponent(clinicProfile ? "ClinicProfile" : "UserProfile");
+                                setIsDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                            >
+                              {clinicProfile ? "Clinic Profile" : "User Profile"}
+                            </button>
+                          </li>
+                          <li>
+                            <button
+                              onClick={() => {
+                                setActiveComponent("Settings");
+                                setIsDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                            >
+                              Settings
+                            </button>
+                          </li>
+                          {clinicProfile && (
+                            <>
+                              <li>
+                                <button
+                                  onClick={() => {
+                                    setActiveComponent("Schedule");
+                                    setIsDropdownOpen(false);
+                                  }}
+                                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                >
+                                  Manage Schedule
+                                </button>
+                              </li>
+                              <li>
+                                <button
+                                  onClick={() => {
+                                    setActiveComponent("Appointments");
+                                    setIsDropdownOpen(false);
+                                  }}
+                                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                >
+                                  View Appointments
+                                </button>
+                              </li>
+                            </>
+                          )}
+                        </ul>
+
+                        <div className="py-1">
+                          <button
+                            onClick={logout}
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            Logout
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </header>
 

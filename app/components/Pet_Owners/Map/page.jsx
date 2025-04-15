@@ -59,10 +59,10 @@ const geocodeAddress = async (clinic) => {
         longitude: parseFloat(data[0].lon)
       };
     }
-    return clinic; // Return original clinic if geocoding fails
+    return clinic;
   } catch (error) {
     console.error("Geocoding error:", error);
-    return clinic; // Return original clinic if geocoding fails
+    return clinic;
   }
 };
 
@@ -76,12 +76,11 @@ const VetMap = () => {
   const router = useRouter();
   const supabase = createClientComponentClient();
   const mapRef = useRef(null);
+  const markerRefs = useRef({});
 
-  // Butuan City coordinates [latitude, longitude]
   const BUTUAN_CENTER = [8.9475, 125.5406];
   const DEFAULT_ZOOM = 13;
 
-  // Fetch clinics data
   useEffect(() => {
     const fetchClinics = async () => {
       try {
@@ -105,17 +104,12 @@ const VetMap = () => {
 
         if (error) throw error;
 
-        // Process clinics - geocode those without coordinates
         const processedClinics = await Promise.all(
           clinicsData.map(async (clinic) => {
-            if (clinic.latitude && clinic.longitude) {
-              return clinic; // Already has coordinates
-            }
+            if (clinic.latitude && clinic.longitude) return clinic;
             
-            // Geocode address to get coordinates
             const geocodedClinic = await geocodeAddress(clinic);
             
-            // If geocoding was successful, update the clinic in the database
             if (geocodedClinic.latitude && geocodedClinic.longitude) {
               const { error: updateError } = await supabase
                 .from("veterinary_clinics")
@@ -125,16 +119,13 @@ const VetMap = () => {
                 })
                 .eq("id", geocodedClinic.id);
               
-              if (updateError) {
-                console.error("Error updating clinic coordinates:", updateError);
-              }
+              if (updateError) console.error("Error updating clinic coordinates:", updateError);
             }
             
             return geocodedClinic;
           })
         );
 
-        // Filter out clinics without coordinates (geocoding failed)
         const clinicsWithCoords = processedClinics.filter(
           (clinic) => clinic.latitude && clinic.longitude
         );
@@ -150,8 +141,8 @@ const VetMap = () => {
     fetchClinics();
   }, [supabase]);
 
-  const handleClinicClick = (clinicId) => {
-    router.push(`/appointments/book?clinic=${clinicId}`);
+  const handleBookAppointment = (clinicId) => {
+    router.push(`/user/Appointments/${clinicId}`);
   };
 
   const handleLocateMe = () => {
@@ -175,43 +166,32 @@ const VetMap = () => {
         const userPos = [pos.coords.latitude, pos.coords.longitude];
         setUserLocation(userPos);
         mapRef.current?.flyTo(userPos, 15);
-
-        // Show location marker for 5 seconds
-        setTimeout(() => {
-          setShowLocationPopup(false);
-        }, 5000);
+        setTimeout(() => setShowLocationPopup(false), 5000);
       },
       (err) => {
         console.error("Geolocation error:", err);
         setLocationError("Unable to retrieve your location");
         setShowLocationPopup(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Icon icon="eos-icons:loading" className="text-4xl text-blue-500" />
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-full relative">
-      {/* Permission Modal */}
+    <div className="h-screen w-full relative font-[Poppins]">
       {showPermissionModal && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
           <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
             <h3 className="font-bold text-lg mb-4">Location Access</h3>
-            <p className="mb-6">
-              Allow this application to access your current location?
-            </p>
+            <p className="mb-6">Allow this application to access your current location?</p>
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => confirmLocationAccess(false)}
@@ -235,6 +215,7 @@ const VetMap = () => {
         zoom={DEFAULT_ZOOM}
         className="h-full w-full"
         ref={mapRef}
+        closePopupOnClick={false}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -247,19 +228,48 @@ const VetMap = () => {
             key={clinic.id}
             position={[clinic.latitude, clinic.longitude]}
             icon={createRedIcon()}
-            eventHandlers={{
-              click: () => handleClinicClick(clinic.id),
+            ref={(ref) => {
+              if (ref) {
+                markerRefs.current[clinic.id] = ref;
+              }
             }}
+            eventHandlers={{
+              click: () => {
+                markerRefs.current[clinic.id]?.openPopup();
+              }
+            }}
+            title={clinic.clinic_name}
           >
-            <Popup>
-              <div className="min-w-[200px]">
-                <h3 className="font-bold text-lg">{clinic.clinic_name}</h3>
-                <p className="text-sm text-gray-600">
-                  {clinic.address}, {clinic.city}
-                </p>
+            <Popup className="font-[Poppins]">
+              <div className="min-w-[250px] p-2">
+                {/* Clinic Name */}
+                <h3 className="text-lg font-bold text-gray-800 mb-1">
+                  {clinic.clinic_name}
+                </h3>
+                
+                {/* Clinic Address */}
+                <div className="flex items-start mb-3">
+                  <Icon icon="mdi:map-marker" className="text-gray-500 mr-2 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-gray-600">
+                    {clinic.address}, {clinic.city}, {clinic.country}
+                  </p>
+                </div>
+                
+                {/* Contact Information */}
+                <div className="flex items-center mb-4">
+                  <Icon icon="mdi:phone" className="text-gray-500 mr-2 flex-shrink-0" />
+                  <a 
+                    href={`tel:${clinic.contact_number}`}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    {clinic.contact_number}
+                  </a>
+                </div>
+                
+                {/* Book Appointment Button */}
                 <button
-                  onClick={() => handleClinicClick(clinic.id)}
-                  className="mt-2 w-full bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded text-sm"
+                  onClick={() => handleBookAppointment(clinic.id)}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors"
                 >
                   Book Appointment
                 </button>
@@ -293,7 +303,7 @@ const VetMap = () => {
               })}
             >
               {showLocationPopup && (
-                <Popup>
+                <Popup className="font-[Poppins]">
                   <div className="text-sm font-medium text-blue-600">
                     You are here
                   </div>
@@ -304,7 +314,6 @@ const VetMap = () => {
         )}
       </MapContainer>
 
-      {/* Locate Me Button */}
       <div className="absolute bottom-4 right-4 z-[1000]">
         <button
           onClick={handleLocateMe}
@@ -315,9 +324,8 @@ const VetMap = () => {
         </button>
       </div>
 
-      {/* Location Error Toast */}
       {locationError && (
-        <div className="absolute bottom-20 right-4 z-[1000] bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <div className="absolute bottom-20 right-4 z-[1000] bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded font-[Poppins]">
           <span className="block sm:inline">{locationError}</span>
         </div>
       )}
