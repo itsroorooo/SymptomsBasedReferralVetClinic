@@ -270,17 +270,6 @@ const VetClinicDashboard = () => {
                                   Manage Schedule
                                 </button>
                               </li>
-                              <li>
-                                <button
-                                  onClick={() => {
-                                    setActiveComponent("Appointments");
-                                    setIsDropdownOpen(false);
-                                  }}
-                                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                >
-                                  View Appointments
-                                </button>
-                              </li>
                             </>
                           )}
                         </ul>

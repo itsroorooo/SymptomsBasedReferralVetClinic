@@ -272,24 +272,24 @@ const countries = [
     
       const handleSubmit = async (e) => {
         e.preventDefault();
-        
+      
         if (!validateForm()) return;
-        
+      
         setIsSubmitting(true);
-        
+      
         try {
           // First geocode the address to get coordinates
           const coordinates = await geocodeAddress(
             `${formData.address}, ${formData.city}, ${formData.province}, ${formData.country}`
           );
-    
+      
           if (!coordinates) {
             throw new Error("Could not determine location coordinates for this address");
           }
-    
+      
           // Hash the password
           const hashedPassword = await bcrypt.hash(formData.password, 10);
-          
+      
           // Step 1: Create auth user
           const { data: authData, error: authError } = await supabase.auth.signUp({
             email: formData.email,
@@ -300,69 +300,76 @@ const countries = [
                 role: "veterinary",
               },
               emailRedirectTo: `${window.location.origin}/auth/callback`,
-            }
+            },
           });
-    
-          if (authError) throw authError;
+      
+          if (authError) {
+            if (authError.message.includes("duplicate key value")) {
+              throw new Error("An account with this email already exists.");
+            }
+            throw authError;
+          }
+      
           if (!authData.user) throw new Error("User creation failed");
-    
-          // Step 2: Create user in users table
+      
+          // Step 2: Create veterinary clinic first (without user_id)
+          const clinicId = uuidv4();
+          const { error: clinicError } = await supabase
+            .from("veterinary_clinics")
+            .insert([
+              {
+                id: clinicId,
+                clinic_name: formData.clinic_name,
+                address: formData.address,
+                city: formData.city,
+                zip_code: formData.zip_code,
+                country: formData.country,
+                province: formData.province,
+                contact_number: formData.contact_number,
+                email: formData.email,
+                website: formData.website,
+                latitude: coordinates.latitude,
+                longitude: coordinates.longitude,
+                is_verified: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+            ]);
+      
+          if (clinicError) throw clinicError;
+      
+          // Step 3: Create user in users table with clinic_id
           const { error: userError } = await supabase
-            .from('users')
+            .from("users")
             .insert({
               id: authData.user.id,
               email: formData.email,
               first_name: formData.clinic_name,
-              last_name: '',
-              role: 'veterinary',
+              last_name: "",
+              role: "veterinary",
+              created_by_admin_id: null,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
               is_active: true,
-              password_hash: hashedPassword
+              password_hash: hashedPassword,
+              clinic_id: clinicId,
             });
-    
+      
           if (userError) throw userError;
-    
-          // Step 3: Create veterinary clinic
-          const clinicId = uuidv4();
-          const { error: clinicError } = await supabase
+      
+          // Step 4: Update the veterinary clinic with the user_id
+          const { error: clinicUpdateError } = await supabase
             .from("veterinary_clinics")
-            .insert([{
-              id: clinicId,
-              user_id: authData.user.id,
-              clinic_name: formData.clinic_name,
-              address: formData.address,
-              city: formData.city,
-              zip_code: formData.zip_code,
-              country: formData.country,
-              province: formData.province,
-              contact_number: formData.contact_number,
-              email: formData.email,
-              website: formData.website,
-              latitude: coordinates.latitude,
-              longitude: coordinates.longitude,
-              is_verified: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }]);
-    
-          if (clinicError) throw clinicError;
-    
-          // Step 4: Update auth user metadata with clinic ID
-          const { error: updateError } = await supabase.auth.updateUser({
-            data: {
-              clinic_id: clinicId
-            }
-          });
-    
-          if (updateError) throw updateError;
-    
+            .update({ user_id: authData.user.id })
+            .eq("id", clinicId);
+      
+          if (clinicUpdateError) throw clinicUpdateError;
+      
           setSuccess(true);
-          
         } catch (error) {
           console.error("Registration error:", error);
           setErrors({
-            general: error.message || "An error occurred during registration"
+            general: error.message || "An error occurred during registration",
           });
         } finally {
           setIsSubmitting(false);
