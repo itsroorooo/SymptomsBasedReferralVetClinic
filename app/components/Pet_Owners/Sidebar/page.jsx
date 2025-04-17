@@ -37,8 +37,12 @@ const Sidebar = ({
         </span>
       </div>
 
+      {/* Underline */}
+      <div className="flex items-center justify-center my-6 mt-16">
+        <hr className="w-56 border-gray-400" />
+      </div>
       {/* Navigation Bar */}
-      <nav className="mt-24 px-6">
+      <nav className="mt-10 px-6">
         {/* Home Link */}
         <a
           href="#"
@@ -206,11 +210,6 @@ const Sidebar = ({
           Map
         </a>
       </nav>
-
-      {/* Underline */}
-      <div className="flex items-center justify-center my-6 mt-28">
-        <hr className="w-56 border-gray-400" />
-      </div>
     </aside>
   );
 };
