@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { createClient } from "../../utils/supabase/client";
-import { v4 as uuidv4 } from "uuid";
+"use client";
+
+import React, { useState } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useRouter } from "next/navigation";
 import bcrypt from "bcryptjs";
+import { createClient } from "@/utils/supabase/client";
+import { v4 as uuidv4 } from "uuid";
 
 const supabase = createClient();
 
@@ -73,20 +77,27 @@ const countries = [
       ]
     };
 
-    export default function VetClinicAdd({ onAddClinic, onClose }) {
-      const [newClinic, setNewClinic] = useState({
+    export default function VeterinaryAdd() {
+      const supabase = createClientComponentClient();
+      const router = useRouter();
+    
+      const [formData, setFormData] = useState({
         clinic_name: "",
-        clinic_password: "",
+        email: "",
+        password: "",
+        confirm_password: "",
         address: "",
         city: "",
         zip_code: "",
         country: "",
         province: "",
         contact_number: "",
-        clinic_email: "",
-        website: "",
+        website: ""
       });
-      const [isAdding, setIsAdding] = useState(false);
+    
+      const [errors, setErrors] = useState({});
+      const [isSubmitting, setIsSubmitting] = useState(false);
+      const [success, setSuccess] = useState(false);
       const [locationStatus, setLocationStatus] = useState({
         loading: false,
         error: null,
@@ -94,11 +105,11 @@ const countries = [
       });
       const [showPermissionModal, setShowPermissionModal] = useState(false);
     
-      const handleInputChange = (e) => {
+      const handleChange = (e) => {
         const { name, value } = e.target;
-        setNewClinic((prev) => ({
+        setFormData(prev => ({
           ...prev,
-          [name]: value,
+          [name]: value
         }));
       };
     
@@ -115,7 +126,6 @@ const countries = [
           
           const address = data.address;
           
-          // Parse address components
           let parsedAddress = "";
           const addressParts = [
             address.house_number,
@@ -128,11 +138,9 @@ const countries = [
           
           parsedAddress = addressParts.join(", ") || "Unknown address";
           
-          // Determine city
           const city = address.city || address.town || 
                       address.village || address.municipality || "";
           
-          // Determine province/state
           const province = address.state || address.county || 
                           address.region || address.province || "";
           
@@ -178,7 +186,7 @@ const countries = [
               const { latitude, longitude } = position.coords;
               const address = await reverseGeocode(latitude, longitude);
               
-              setNewClinic(prev => ({
+              setFormData(prev => ({
                 ...prev,
                 country: address.country || prev.country,
                 province: address.province || prev.province,
@@ -217,179 +225,255 @@ const countries = [
         );
       };
     
+      const geocodeAddress = async (address) => {
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
+          );
+          const data = await response.json();
+          
+          if (data.length > 0) {
+            return {
+              latitude: parseFloat(data[0].lat),
+              longitude: parseFloat(data[0].lon)
+            };
+          }
+          return null;
+        } catch (error) {
+          console.error("Geocoding error:", error);
+          return null;
+        }
+      };
+    
+      const validateForm = () => {
+        const newErrors = {};
+        
+        if (!formData.clinic_name) newErrors.clinic_name = "Clinic name is required";
+        if (!formData.email) newErrors.email = "Email is required";
+        if (!formData.password) newErrors.password = "Password is required";
+        if (formData.password.length < 8) newErrors.password = "Password must be at least 8 characters";
+        if (formData.password !== formData.confirm_password) newErrors.confirm_password = "Passwords do not match";
+        if (!formData.country) newErrors.country = "Country is required";
+        if (!formData.province) newErrors.province = "Province is required";
+        if (!formData.city) newErrors.city = "City is required";
+        if (!formData.address) newErrors.address = "Address is required";
+        if (!formData.contact_number) newErrors.contact_number = "Contact number is required";
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+      };
+    
+      const getCities = () => {
+        if (formData.country === "Philippines" && formData.province) {
+          return philippineCitiesByProvince[formData.province] || [];
+        }
+        return [];
+      };
+    
       const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsAdding(true);
+      
+        if (!validateForm()) return;
+      
+        setIsSubmitting(true);
       
         try {
           // First geocode the address to get coordinates
           const coordinates = await geocodeAddress(
-            `${newClinic.address}, ${newClinic.city}, ${newClinic.province}, ${newClinic.country}`
+            `${formData.address}, ${formData.city}, ${formData.province}, ${formData.country}`
           );
-    
+      
           if (!coordinates) {
             throw new Error("Could not determine location coordinates for this address");
           }
-    
-          const hashedPassword = await bcrypt.hash(newClinic.clinic_password, 10);
-          const uniqueUserId = uuidv4();
-    
-          // Insert user
-          const { error: userInsertError } = await supabase.from("users").insert([
-            {
-              id: uniqueUserId,
-              email: newClinic.clinic_email,
-              password_hash: hashedPassword,
+      
+          // Hash the password
+          const hashedPassword = await bcrypt.hash(formData.password, 10);
+      
+          // Step 1: Create auth user
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password,
+            options: {
+              data: {
+                full_name: formData.clinic_name,
+                role: "veterinary",
+              },
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+            },
+          });
+      
+          if (authError) {
+            if (authError.message.includes("duplicate key value")) {
+              throw new Error("An account with this email already exists.");
+            }
+            throw authError;
+          }
+      
+          if (!authData.user) throw new Error("User creation failed");
+      
+          // Step 2: Create veterinary clinic first (without user_id)
+          const clinicId = uuidv4();
+          const { error: clinicError } = await supabase
+            .from("veterinary_clinics")
+            .insert([
+              {
+                id: clinicId,
+                clinic_name: formData.clinic_name,
+                address: formData.address,
+                city: formData.city,
+                zip_code: formData.zip_code,
+                country: formData.country,
+                province: formData.province,
+                contact_number: formData.contact_number,
+                email: formData.email,
+                website: formData.website,
+                latitude: coordinates.latitude,
+                longitude: coordinates.longitude,
+                is_verified: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+            ]);
+      
+          if (clinicError) throw clinicError;
+      
+          // Step 3: Create user in users table with clinic_id
+          const { error: userError } = await supabase
+            .from("users")
+            .insert({
+              id: authData.user.id,
+              email: formData.email,
+              first_name: formData.clinic_name,
+              last_name: "",
               role: "veterinary",
-            },
-          ]);
-          
-          if (userInsertError) throw userInsertError;
-    
-          const uniqueClinicId = uuidv4();
-          
-          // Insert clinic with geocoded coordinates
-          const { error: clinicInsertError } = await supabase.from("veterinary_clinics").insert([
-            {
-              id: uniqueClinicId,
-              user_id: uniqueUserId,
-              clinic_name: newClinic.clinic_name,
-              address: newClinic.address,
-              city: newClinic.city,
-              zip_code: newClinic.zip_code,
-              country: newClinic.country,
-              province: newClinic.province,
-              contact_number: newClinic.contact_number,
-              email: newClinic.clinic_email,
-              website: newClinic.website,
-              latitude: coordinates.latitude,
-              longitude: coordinates.longitude,
-              is_verified: false // New clinics should be verified by admin
-            },
-          ]);
-          
-          if (clinicInsertError) throw clinicInsertError;
-    
-          onAddClinic({
-            ...newClinic,
-            id: uniqueClinicId,
-            latitude: coordinates.latitude,
-            longitude: coordinates.longitude
-          });
-    
-          // Reset form
-          setNewClinic({
-            clinic_name: "",
-            clinic_password: "",
-            address: "",
-            city: "",
-            zip_code: "",
-            country: "",
-            province: "",
-            contact_number: "",
-            clinic_email: "",
-            website: "",
-          });
-          
-          onClose();
+              created_by_admin_id: null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              is_active: true,
+              password_hash: hashedPassword,
+              clinic_id: clinicId,
+            });
+      
+          if (userError) throw userError;
+      
+          // Step 4: Update the veterinary clinic with the user_id
+          const { error: clinicUpdateError } = await supabase
+            .from("veterinary_clinics")
+            .update({ user_id: authData.user.id })
+            .eq("id", clinicId);
+      
+          if (clinicUpdateError) throw clinicUpdateError;
+      
+          setSuccess(true);
         } catch (error) {
-          console.error("Error:", error);
-          alert(error.message || "An error occurred. Please try again.");
+          console.error("Registration error:", error);
+          setErrors({
+            general: error.message || "An error occurred during registration",
+          });
         } finally {
-          setIsAdding(false);
+          setIsSubmitting(false);
         }
-      };
-    
-      const getCities = () => {
-        if (newClinic.country === "Philippines" && newClinic.province) {
-          return philippineCitiesByProvince[newClinic.province] || [];
-        }
-        return [];
       };
     
       const cities = getCities();
     
       return (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div
-            className="fixed inset-0 bg-gray-200 bg-opacity-75 transition-opacity"
-            onClick={onClose}
-          ></div>
-    
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-y-auto max-h-[90vh]">
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-white p-4 border-b flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">Add New Clinic</h3>
+        <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
+          <h1 className="text-2xl font-bold mb-6">Register Veterinary Clinic</h1>
+          
+          {success ? (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+              <p>Veterinary clinic account created successfully!</p>
+              <p>An email has been sent to {formData.email} with confirmation instructions.</p>
               <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                onClick={() => {
+                  setSuccess(false);
+                  setFormData({
+                    clinic_name: "",
+                    email: "",
+                    password: "",
+                    confirm_password: "",
+                    address: "",
+                    city: "",
+                    zip_code: "",
+                    country: "",
+                    province: "",
+                    contact_number: "",
+                    website: ""
+                  });
+                }}
+                className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                Create Another Account
               </button>
             </div>
-    
-            {/* Modal Body */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Clinic Name */}
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Clinic Name *
                   </label>
                   <input
                     type="text"
                     name="clinic_name"
-                    value={newClinic.clinic_name}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={formData.clinic_name}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 border rounded-md ${errors.clinic_name ? 'border-red-500' : 'border-gray-300'}`}
                   />
+                  {errors.clinic_name && <p className="text-red-500 text-sm mt-1">{errors.clinic_name}</p>}
                 </div>
     
                 {/* Email */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email *
                   </label>
                   <input
                     type="email"
-                    name="clinic_email"
-                    value={newClinic.clinic_email}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 border rounded-md ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
                   />
+                  {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                 </div>
     
                 {/* Password */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Password *
                   </label>
                   <input
                     type="password"
-                    name="clinic_password"
-                    value={newClinic.clinic_password}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 border rounded-md ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
                   />
+                  {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+                </div>
+    
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirm Password *
+                  </label>
+                  <input
+                    type="password"
+                    name="confirm_password"
+                    value={formData.confirm_password}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 border rounded-md ${errors.confirm_password ? 'border-red-500' : 'border-gray-300'}`}
+                  />
+                  {errors.confirm_password && <p className="text-red-500 text-sm mt-1">{errors.confirm_password}</p>}
                 </div>
     
                 {/* Location Button */}
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Location
                   </label>
                   <button
@@ -425,73 +509,72 @@ const countries = [
                 </div>
     
                 {/* Country */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Country *
                   </label>
                   <select
                     name="country"
-                    value={newClinic.country}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={formData.country}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 border rounded-md ${errors.country ? 'border-red-500' : 'border-gray-300'}`}
                   >
-                    <option value="" disabled>Select a country</option>
-                    {countries.map((country) => (
+                    <option value="">Select a country</option>
+                    {countries.map(country => (
                       <option key={country} value={country}>{country}</option>
                     ))}
                   </select>
+                  {errors.country && <p className="text-red-500 text-sm mt-1">{errors.country}</p>}
                 </div>
     
                 {/* Province */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Province *
                   </label>
                   <select
                     name="province"
-                    value={newClinic.province}
-                    onChange={handleInputChange}
-                    required
-                    disabled={!newClinic.country || !countryProvinces[newClinic.country]}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={formData.province}
+                    onChange={handleChange}
+                    disabled={!formData.country || !countryProvinces[formData.country]}
+                    className={`w-full px-3 py-2 border rounded-md ${errors.province ? 'border-red-500' : 'border-gray-300'}`}
                   >
-                    <option value="" disabled>
-                      {!newClinic.country
+                    <option value="">
+                      {!formData.country
                         ? "Select a country first"
-                        : !countryProvinces[newClinic.country]
+                        : !countryProvinces[formData.country]
                         ? "No provinces available"
                         : "Select a province"}
                     </option>
-                    {newClinic.country &&
-                      countryProvinces[newClinic.country]?.map((province) => (
+                    {formData.country &&
+                      countryProvinces[formData.country]?.map(province => (
                         <option key={province} value={province}>{province}</option>
                       ))}
                   </select>
+                  {errors.province && <p className="text-red-500 text-sm mt-1">{errors.province}</p>}
                 </div>
     
                 {/* City */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     City *
                   </label>
-                  {newClinic.country === "Philippines" ? (
+                  {formData.country === "Philippines" ? (
                     <select
                       name="city"
-                      value={newClinic.city}
-                      onChange={handleInputChange}
-                      required
-                      disabled={!newClinic.province || cities.length === 0}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      value={formData.city}
+                      onChange={handleChange}
+                      disabled={!formData.province || cities.length === 0}
+                      className={`w-full px-3 py-2 border rounded-md ${errors.city ? 'border-red-500' : 'border-gray-300'}`}
                     >
-                      <option value="" disabled>
-                        {!newClinic.province
+                      <option value="">
+                        {!formData.province
                           ? "Select a province first"
                           : cities.length === 0
                           ? "No cities available"
                           : "Select a city"}
                       </option>
-                      {cities.map((city) => (
+                      {cities.map(city => (
                         <option key={city} value={city}>{city}</option>
                       ))}
                     </select>
@@ -499,98 +582,96 @@ const countries = [
                     <input
                       type="text"
                       name="city"
-                      value={newClinic.city}
-                      onChange={handleInputChange}
-                      required
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      value={formData.city}
+                      onChange={handleChange}
+                      className={`w-full px-3 py-2 border rounded-md ${errors.city ? 'border-red-500' : 'border-gray-300'}`}
                     />
                   )}
+                  {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
                 </div>
     
                 {/* Zip Code */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Zip Code *
                   </label>
                   <input
                     type="text"
                     name="zip_code"
-                    value={newClinic.zip_code}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={formData.zip_code}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 border rounded-md ${errors.zip_code ? 'border-red-500' : 'border-gray-300'}`}
                   />
+                  {errors.zip_code && <p className="text-red-500 text-sm mt-1">{errors.zip_code}</p>}
                 </div>
     
                 {/* Address */}
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Address *
                   </label>
                   <input
                     type="text"
                     name="address"
-                    value={newClinic.address}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={formData.address}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 border rounded-md ${errors.address ? 'border-red-500' : 'border-gray-300'}`}
                   />
+                  {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
                 </div>
     
                 {/* Contact Number */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Contact Number *
                   </label>
                   <input
                     type="text"
                     name="contact_number"
-                    value={newClinic.contact_number}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={formData.contact_number}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 border rounded-md ${errors.contact_number ? 'border-red-500' : 'border-gray-300'}`}
                   />
+                  {errors.contact_number && <p className="text-red-500 text-sm mt-1">{errors.contact_number}</p>}
                 </div>
     
                 {/* Website */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Website
                   </label>
                   <input
                     type="text"
                     name="website"
-                    value={newClinic.website}
-                    onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={formData.website}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 </div>
               </div>
     
-              {/* Modal Footer */}
-              <div className="flex justify-end space-x-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Cancel
-                </button>
+              {errors.general && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                  {errors.general}
+                </div>
+              )}
+    
+              <div className="flex justify-end">
                 <button
                   type="submit"
-                  disabled={isAdding}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  disabled={isSubmitting}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
                 >
-                  {isAdding ? "Adding..." : "Add Clinic"}
+                  {isSubmitting ? 'Creating Account...' : 'Create Veterinary Account'}
                 </button>
               </div>
             </form>
-          </div>
+          )}
     
           {/* Permission Modal */}
           {showPermissionModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
-              <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-lg max-w-md w-full">
                 <h3 className="font-bold text-lg mb-4">Location Access</h3>
                 <p className="mb-6">
                   Allow this application to access your current location to automatically fill your address details?
@@ -615,22 +696,3 @@ const countries = [
         </div>
       );
     }
-    export const geocodeAddress = async (address) => {
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
-        );
-        const data = await response.json();
-        
-        if (data.length > 0) {
-          return {
-            latitude: parseFloat(data[0].lat),
-            longitude: parseFloat(data[0].lon)
-          };
-        }
-        return null;
-      } catch (error) {
-        console.error("Geocoding error:", error);
-        return null;
-      }
-    };

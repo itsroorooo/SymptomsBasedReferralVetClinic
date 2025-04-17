@@ -32,7 +32,7 @@ export async function login(formData) {
 
     // ✅ This throws a redirect signal — no need to return anything
     revalidatePath("/", "layout");
-    redirect("/vetclinic");
+    redirect("/clinic");
   }
 
   // Supabase Auth login (pet_owner & admin)
@@ -60,6 +60,8 @@ export async function login(formData) {
     redirect("/user");
   } else if (role === "admin") {
     redirect("/admin");
+  } else if (role === "veterinary") {
+    redirect("/clinic"); 
   } else {
     redirect("/");
   }
