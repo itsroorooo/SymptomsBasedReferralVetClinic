@@ -46,16 +46,20 @@ const Sidebar = ({
             e.preventDefault();
             setActiveComponent("Dashboard");
           }}
-          className={`flex items-center py-3 px-6 mb-2 rounded-lg transition duration-200 ${
+          className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 hover:bg-blue-500 text-lg text-white ${
             activeComponent === "Dashboard"
               ? "bg-blue-500"
               : "hover:bg-blue-500"
           }`}
         >
           <svg
-            className="w-6 h-6 mr-3"
+            className={`w-6 h-6 mr-3 ${
+              activeComponent === "Dashboard"
+                ? "text-white"
+                : "text-blue-500 group-hover:text-white"
+            }`}
             viewBox="0 0 24 24"
-            fill={activeComponent === "Dashboard" ? "white" : "#2196F3"}
+            fill="currentColor"
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
@@ -71,13 +75,17 @@ const Sidebar = ({
         <a
           href="#"
           onClick={() => setActiveComponent("pet")}
-          className={`group flex items-center py-3 px-6 rounded-lg transition duration-200 ${
+          className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 hover:bg-blue-500 text-lg text-white ${
             activeComponent === "pet" ? "bg-blue-500" : "hover:bg-blue-500"
           }`}
         >
           <svg
-            className="w-6 h-6 mr-3"
-            fill={activeComponent === "pet" ? "white" : "#2196F3"}
+            className={`w-6 h-6 mr-3 ${
+              activeComponent === "pet"
+                ? "text-white"
+                : "text-blue-500 group-hover:text-white"
+            }`}
+            fill="currentColor"
             version="1.1"
             id="Capa_1"
             xmlns="http://www.w3.org/2000/svg"
@@ -100,7 +108,7 @@ const Sidebar = ({
         <a
           href="#"
           onClick={() => setActiveComponent("symptoms")}
-          className={`group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-lg text-white ${
+          className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 hover:bg-blue-500 text-lg text-white ${
             activeComponent === "symptoms" ? "bg-blue-500" : "hover:bg-blue-500"
           }`}
         >
@@ -111,34 +119,18 @@ const Sidebar = ({
                 : "text-blue-500 group-hover:text-white"
             }`}
             fill="currentColor"
-            aria-hidden="true"
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
-              stroke="#2196F3"
-              strokeWidth="2"
+            <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+            <g
+              id="SVGRepo_tracerCarrier"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="transition duration-200 group-hover:stroke-white"
-            ></path>
-            <path
-              d="M12 8V16"
-              stroke="#2196F3"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="transition duration-200 group-hover:stroke-white"
-            ></path>
-            <path
-              d="M8 12H16"
-              stroke="#2196F3"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="transition duration-200 group-hover:stroke-white"
-            ></path>
+            ></g>
+            <g id="SVGRepo_iconCarrier">
+              <path d="M3,16H8v5a1,1,0,0,0,1,1h6a1,1,0,0,0,1-1V16h5a1,1,0,0,0,1-1V9a1,1,0,0,0-1-1H16V3a1,1,0,0,0-1-1H9A1,1,0,0,0,8,3V8H3A1,1,0,0,0,2,9v6A1,1,0,0,0,3,16Zm1-6H9a1,1,0,0,0,1-1V4h4V9a1,1,0,0,0,1,1h5v4H15a1,1,0,0,0-1,1v5H10V15a1,1,0,0,0-1-1H4Z"></path>
+            </g>
           </svg>
           Symptoms
         </a>
@@ -147,42 +139,29 @@ const Sidebar = ({
         <a
           href="#"
           onClick={() => setActiveComponent("appointment")}
-          className="group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-lg text-white"
+          className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 text-lg ${
+            activeComponent === "appointment"
+              ? "bg-blue-500 text-white"
+              : "hover:bg-blue-500 text-white"
+          }`}
         >
           <svg
-            className="w-6 h-6 mr-3 transition duration-200 group-hover:stroke-white"
+            className={`w-6 h-6 mr-3 transition-colors duration-200 ${
+              activeComponent === "appointment"
+                ? "text-white"
+                : "text-blue-500 group-hover:text-white"
+            }`}
             viewBox="0 0 24 24"
-            fill="none"
+            fill="currentColor"
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
-              d="M14 22H10C6.22876 22 4.34315 22 3.17157 20.8284C2 19.6569 2 17.7712 2 14V12C2 8.22876 2 6.34315 3.17157 5.17157C4.34315 4 6.22876 4 10 4H14C17.7712 4 19.6569 4 20.8284 5.17157C22 6.34315 22 8.22876 22 12V14C22 17.7712 22 19.6569 20.8284 20.8284C20.1752 21.4816 19.3001 21.7706 18 21.8985"
-              stroke="#2196F3"
+              d="M13 17H21M17 21V13M10 11H4M20 9V7C20 5.89543 19.1046 5 18 5H6C4.89543 5 4 5.89543 4 7V19C4 20.1046 4.89543 21 6 21H10M15 3V7M9 3V7"
+              stroke="currentColor"
               strokeWidth="1.5"
               strokeLinecap="round"
-              className="transition duration-200 group-hover:stroke-white"
-            ></path>
-            <path
-              d="M7 4V2.5"
-              stroke="#2196F3"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              className="transition duration-200 group-hover:fill-white"
-            ></path>
-            <path
-              d="M17 4V2.5"
-              stroke="#2196F3"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              className="transition duration-200 group-hover:fill-white"
-            ></path>
-            <path
-              d="M21.5 9H16.625H10.75M2 9H5.875"
-              stroke="#2196F3"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              className="transition duration-200 group-hover:fill-white"
-            ></path>
+              strokeLinejoin="round"
+            />
           </svg>
           Appointment
         </a>
@@ -191,12 +170,18 @@ const Sidebar = ({
         <a
           href="#"
           onClick={() => setActiveComponent("map")}
-          className={`group flex items-center py-3 px-6 rounded transition duration-200 hover:bg-blue-500 text-lg text-white ${
-            activeComponent === "map" ? "bg-blue-500" : "hover:bg-blue-500"
+          className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 text-lg ${
+            activeComponent === "map"
+              ? "bg-blue-500 text-white"
+              : "hover:bg-blue-500 text-white"
           }`}
         >
           <svg
-            className="w-6 h-6 mr-3 transition duration-200 group-hover:stroke-white"
+            className={`w-6 h-6 mr-3 transition-colors duration-200 ${
+              activeComponent === "map"
+                ? "text-white"
+                : "text-blue-500 group-hover:text-white"
+            }`}
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -204,20 +189,18 @@ const Sidebar = ({
             <g>
               <path
                 d="M14 22H10C6.22876 22 4.34315 22 3.17157 20.8284C2 19.6569 2 17.7712 2 14V12C2 8.22876 2 6.34315 3.17157 5.17157C4.34315 4 6.22876 4 10 4H14C17.7712 4 19.6569 4 20.8284 5.17157C22 6.34315 22 8.22876 22 12V14C22 17.7712 22 19.6569 20.8284 20.8284C20.1752 21.4816 19.3001 21.7706 18 21.8985"
-                stroke="#2196F3"
+                stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="transition duration-200 group-hover:stroke-white"
-              ></path>
+              />
               <path
                 d="M12 9H12.01M18 9C18 13.0637 13.5 15 12 18C10.5 15 6 13.0637 6 9C6 5.68629 8.68629 3 12 3C15.3137 3 18 5.68629 18 9ZM13 9C13 9.55228 12.5523 10 12 10C11.4477 10 11 9.55228 11 9C11 8.44772 11.4477 8 12 8C12.5523 8 13 8.44772 13 9Z"
-                stroke="#2196F3"
+                stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="transition duration-200 group-hover:fill-white"
-              ></path>
+              />
             </g>
           </svg>
           Map
