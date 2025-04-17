@@ -1,376 +1,381 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { format, parseISO, isSameDay } from 'date-fns';
-import { DayPicker } from 'react-day-picker';
-import 'react-day-picker/dist/style.css';
-import { createClient } from "@/utils/supabase/client";
-import toast from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import { format, parseISO, isSameDay } from "date-fns";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+import PropTypes from 'prop-types';
 
-const ScheduleManagement = ({ clinicId }) => {
-  // State for regular schedule
+const ManageSchedule = ({ clinicId }) => {
   const [regularSchedule, setRegularSchedule] = useState([
-    { day_of_week: 0, day_name: 'Sunday', opening_time: '', closing_time: '', is_closed: true },
-    { day_of_week: 1, day_name: 'Monday', opening_time: '09:00', closing_time: '17:00', is_closed: false },
-    { day_of_week: 2, day_name: 'Tuesday', opening_time: '09:00', closing_time: '17:00', is_closed: false },
-    { day_of_week: 3, day_name: 'Wednesday', opening_time: '09:00', closing_time: '17:00', is_closed: false },
-    { day_of_week: 4, day_name: 'Thursday', opening_time: '09:00', closing_time: '17:00', is_closed: false },
-    { day_of_week: 5, day_name: 'Friday', opening_time: '09:00', closing_time: '17:00', is_closed: false },
-    { day_of_week: 6, day_name: 'Saturday', opening_time: '10:00', closing_time: '15:00', is_closed: false },
+    { day_of_week: 0, day_name: "Sunday", opening_time: "", closing_time: "", is_closed: true },
+    { day_of_week: 1, day_name: "Monday", opening_time: "09:00", closing_time: "17:00", is_closed: false },
+    { day_of_week: 2, day_name: "Tuesday", opening_time: "09:00", closing_time: "17:00", is_closed: false },
+    { day_of_week: 3, day_name: "Wednesday", opening_time: "09:00", closing_time: "17:00", is_closed: false },
+    { day_of_week: 4, day_name: "Thursday", opening_time: "09:00", closing_time: "17:00", is_closed: false },
+    { day_of_week: 5, day_name: "Friday", opening_time: "09:00", closing_time: "17:00", is_closed: false },
+    { day_of_week: 6, day_name: "Saturday", opening_time: "10:00", closing_time: "15:00", is_closed: false },
   ]);
-  const supabase = createClient();
-  
-  // State for holidays
+
   const [holidays, setHolidays] = useState([]);
-  const [newHoliday, setNewHoliday] = useState({
-    holiday_date: '',
-    reason: ''
-  });
+  const [newHoliday, setNewHoliday] = useState({ holiday_date: "", reason: "" });
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Fetch data on component mount
   useEffect(() => {
-    fetchScheduleData();
-    fetchHolidays();
+    console.log("Clinic ID:", clinicId);
+    if (clinicId) {
+      fetchScheduleData();
+      fetchHolidays();
+    }
   }, [clinicId]);
 
-  // Fetch regular schedule from database
+    ManageSchedule.propTypes = {
+      clinicId: PropTypes.string.isRequired
+    };
+
   const fetchScheduleData = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      const { data, error } = await supabase
-        .from('veterinary_schedules')
-        .select('*')
-        .eq('clinic_id', clinicId)
-        .order('day_of_week', { ascending: true });
-
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        setRegularSchedule(data);
-      } else {
-        // Initialize default schedule if no data exists
-        const defaultSchedule = [...regularSchedule].map(day => ({
-          ...day,
-          clinic_id: clinicId
-        }));
-        
-        const { error: insertError } = await supabase
-          .from('veterinary_schedules')
-          .insert(defaultSchedule);
-
-        if (insertError) throw insertError;
+      const response = await fetch(`/api/vetclinic/schedules?clinicId=${clinicId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch schedule");
       }
-    } catch (error) {
-      toast.error('Error loading schedule: ' + error.message);
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        // Map the data to include day_name for display
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const formattedData = data.map(item => ({
+          ...item,
+          day_name: days[item.day_of_week],
+          opening_time: item.opening_time || "",
+          closing_time: item.closing_time || ""
+        }));
+        setRegularSchedule(formattedData);
+      }
+    } catch (err) {
+      console.error("Error fetching schedule:", err);
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Fetch holidays from database
   const fetchHolidays = async () => {
+    setError(null);
     try {
-      const { data, error } = await supabase
-        .from('veterinary_holidays')
-        .select('*')
-        .eq('clinic_id', clinicId)
-        .gte('holiday_date', new Date().toISOString())
-        .order('holiday_date', { ascending: true });
-
-      if (error) throw error;
-      setHolidays(data || []);
-    } catch (error) {
-      toast.error('Error loading holidays: ' + error.message);
+      const response = await fetch(`/api/vetclinic/holidays?clinicId=${clinicId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch holidays");
+      }
+      const data = await response.json();
+      setHolidays(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error fetching holidays:", err);
+      setError(err.message);
     }
   };
 
-  // Handle changes to regular schedule
   const handleScheduleChange = (index, field, value) => {
     const updatedSchedule = [...regularSchedule];
-    
-    if (field === 'is_closed') {
+    if (field === "is_closed") {
       updatedSchedule[index][field] = !updatedSchedule[index][field];
-      // Clear times when closed
       if (updatedSchedule[index][field]) {
-        updatedSchedule[index].opening_time = '';
-        updatedSchedule[index].closing_time = '';
+        updatedSchedule[index].opening_time = "";
+        updatedSchedule[index].closing_time = "";
       }
     } else {
       updatedSchedule[index][field] = value;
     }
-    
     setRegularSchedule(updatedSchedule);
   };
 
-  // Save schedule to database
-  const handleSaveSchedule = async () => {
+  const handleHolidaySubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!newHoliday.holiday_date || !newHoliday.reason) {
+      setError("Please fill all fields");
+      return;
+    }
+    
     setIsLoading(true);
+    setError(null);
+    
     try {
-      const { error } = await supabase
-        .from('veterinary_schedules')
-        .upsert(
-          regularSchedule.map(day => ({
-            ...day,
-            clinic_id: clinicId,
-            opening_time: day.is_closed ? null : day.opening_time,
-            closing_time: day.is_closed ? null : day.closing_time
-          }))
-        );
+      if (holidays.some(h => h.holiday_date === newHoliday.holiday_date)) {
+        throw new Error("This date is already marked as a holiday");
+      }
+  
+      const response = await fetch(`/api/vetclinic/holidays?clinicId=${clinicId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clinicId, // Add this
+          holidays: [
+            ...holidays,
+            {
+              holiday_date: newHoliday.holiday_date,
+              reason: newHoliday.reason,
+            }
+          ]
+        }),
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to add holiday");
+      }
+  
+      await fetchHolidays();
+      setNewHoliday({ holiday_date: "", reason: "" });
+      setSelectedDate(new Date());
+    } catch (err) {
+        console.error("Holiday submission error:", err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-      if (error) throw error;
-      toast.success('Schedule saved successfully!');
-    } catch (error) {
-      toast.error('Error saving schedule: ' + error.message);
+  const handleDeleteHoliday = async (holidayId) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/vetclinic/holidays?clinicId=${clinicId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          holidays: holidays.filter(h => h.id !== holidayId)
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete holiday");
+      }
+      
+      await fetchHolidays();
+    } catch (err) {
+      console.error("Error deleting holiday:", err);
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Add new holiday
-  const handleHolidaySubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!newHoliday.holiday_date || !newHoliday.reason) {
-      toast.error('Please select a date and provide a reason');
+  const handleSaveSchedule = async () => {
+    if (!clinicId) {
+      setError("Clinic ID is missing");
       return;
     }
-    
+  
     try {
-      const { error } = await supabase
-        .from('veterinary_holidays')
-        .insert([{
-          clinic_id: clinicId,
-          holiday_date: newHoliday.holiday_date,
-          reason: newHoliday.reason
-        }]);
+      setIsLoading(true);
+      setError(null);
+  
+      // Save regular schedule
+      const scheduleResponse = await fetch(`/api/vetclinic/schedules?clinicId=${clinicId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          clinicId, // Add this
+          schedule: regularSchedule.map(item => ({
+            day_of_week: item.day_of_week,
+            opening_time: item.is_closed ? null : item.opening_time,
+            closing_time: item.is_closed ? null : item.closing_time,
+            is_closed: item.is_closed
+          }))
+        }),
+      });
+  
+      // Save holidays
+      const holidaysResponse = await fetch(`/api/vetclinic/holidays?clinicId=${clinicId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          clinicId, // Add this
+          holidays 
+        }),
+      });
+  
+      if (!holidaysResponse.ok) {
+        const errorData = await holidaysResponse.json();
+        throw new Error(errorData.error || "Failed to save holidays");
+      }
+  
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+        console.error("Error saving schedule:", err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-      if (error) throw error;
-      
-      toast.success('Holiday added successfully!');
-      setNewHoliday({ holiday_date: '', reason: '' });
-      fetchHolidays();
-    } catch (error) {
-      toast.error('Error adding holiday: ' + error.message);
-    }
-  };
-
-  // Delete holiday
-  const handleDeleteHoliday = async (id) => {
-    try {
-      const { error } = await supabase
-        .from('veterinary_holidays')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      
-      toast.success('Holiday removed successfully!');
-      setHolidays(holidays.filter(holiday => holiday.id !== id));
-    } catch (error) {
-      toast.error('Error removing holiday: ' + error.message);
-    }
-  };
-
-  // Check if date is already a holiday
   const isDateDisabled = (date) => {
-    return holidays.some(holiday => 
+    return holidays.some((holiday) => 
       isSameDay(parseISO(holiday.holiday_date), date)
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-            Clinic Schedule Management
-          </h1>
-          <p className="mt-3 text-xl text-gray-500">
-            Manage your veterinary clinic's regular hours and holidays
-          </p>
+    <div className="container mx-auto px-4 py-8">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Regular Schedule Section */}
-          <div className="bg-white shadow-xl rounded-lg overflow-hidden">
-            <div className="p-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Regular Weekly Schedule
-              </h2>
-              
-              <div className="space-y-4">
-                {regularSchedule.map((day, index) => (
-                  <div key={day.day_of_week} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={!day.is_closed}
-                          onChange={() => handleScheduleChange(index, 'is_closed')}
-                          className="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
-                        />
-                        <span className="ml-2 font-medium text-gray-700">{day.day_name}</span>
-                      </label>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${day.is_closed ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                        {day.is_closed ? 'Closed' : 'Open'}
-                      </span>
+      )}
+      {saveSuccess && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          Schedule saved successfully!
+        </div>
+      )}
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Regular Schedule Section */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Regular Weekly Schedule</h2>
+          <div className="space-y-4">
+            {regularSchedule.map((day, index) => (
+              <div key={day.day_of_week} className="border-b pb-4 last:border-b-0">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={!day.is_closed}
+                      onChange={() => handleScheduleChange(index, "is_closed")}
+                      className="mr-2 h-4 w-4 text-blue-600"
+                    />
+                    <span className="font-medium">{day.day_name}</span>
+                  </label>
+                  {day.is_closed ? (
+                    <span className="text-red-500">Closed</span>
+                  ) : (
+                    <span className="text-green-600">Open</span>
+                  )}
+                </div>
+                {!day.is_closed && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Opening Time</label>
+                      <input
+                        type="time"
+                        value={day.opening_time}
+                        onChange={(e) => handleScheduleChange(index, "opening_time", e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      />
                     </div>
-                    
-                    {!day.is_closed && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Opening Time</label>
-                          <input
-                            type="time"
-                            value={day.opening_time}
-                            onChange={(e) => handleScheduleChange(index, 'opening_time', e.target.value)}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Closing Time</label>
-                          <input
-                            type="time"
-                            value={day.closing_time}
-                            onChange={(e) => handleScheduleChange(index, 'closing_time', e.target.value)}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={handleSaveSchedule}
-                  disabled={isLoading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Saving...
-                    </>
-                  ) : 'Save Schedule'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Holidays Section */}
-          <div className="bg-white shadow-xl rounded-lg overflow-hidden">
-            <div className="p-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                <svg className="w-6 h-6 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-                Holidays & Special Closures
-              </h2>
-              
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4">Add New Holiday</h3>
-                <form onSubmit={handleHolidaySubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <div className="border border-gray-300 rounded-lg p-2">
-                      <DayPicker
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(day) => {
-                          setSelectedDate(day);
-                          setNewHoliday({
-                            ...newHoliday,
-                            holiday_date: format(day, 'yyyy-MM-dd')
-                          });
-                        }}
-                        disabled={isDateDisabled}
-                        fromYear={new Date().getFullYear()}
-                        toYear={new Date().getFullYear() + 2}
-                        modifiers={{
-                          disabled: isDateDisabled
-                        }}
-                        styles={{
-                          day: {
-                            borderRadius: '0.25rem',
-                            margin: '0.1rem'
-                          },
-                          day_disabled: {
-                            color: '#e53e3e',
-                            textDecoration: 'line-through'
-                          }
-                        }}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Closing Time</label>
+                      <input
+                        type="time"
+                        value={day.closing_time}
+                        onChange={(e) => handleScheduleChange(index, "closing_time", e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        required
                       />
                     </div>
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
-                    <input
-                      type="text"
-                      value={newHoliday.reason}
-                      onChange={(e) => setNewHoliday({...newHoliday, reason: e.target.value})}
-                      placeholder="E.g., Christmas Day, Staff Training"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    />
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-                  >
-                    Add Holiday
-                  </button>
-                </form>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-gray-700 mb-4">Upcoming Holidays</h3>
-                {holidays.length === 0 ? (
-                  <div className="text-center py-6">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    <p className="mt-2 text-sm text-gray-500">No holidays scheduled</p>
-                  </div>
-                ) : (
-                  <ul className="divide-y divide-gray-200">
-                    {holidays.map(holiday => (
-                      <li key={holiday.id} className="py-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {format(parseISO(holiday.holiday_date), 'MMMM d, yyyy')}
-                            </p>
-                            <p className="text-sm text-gray-500">{holiday.reason}</p>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteHoliday(holiday.id)}
-                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
                 )}
               </div>
-            </div>
+            ))}
           </div>
         </div>
+
+        {/* Holidays Section */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Holidays & Special Closures</h2>
+          <div className="mb-6">
+            <h3 className="text-lg font-medium mb-3">Add New Holiday</h3>
+            <form onSubmit={handleHolidaySubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <DayPicker
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(day) => {
+                    if (!day) return;
+                    setSelectedDate(day);
+                    setNewHoliday({
+                      ...newHoliday,
+                      holiday_date: format(day, "yyyy-MM-dd"),
+                    });
+                  }}
+                  disabled={isDateDisabled}
+                  fromYear={new Date().getFullYear()}
+                  toYear={new Date().getFullYear() + 2}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                <input
+                  type="text"
+                  value={newHoliday.reason}
+                  onChange={(e) => setNewHoliday({ ...newHoliday, reason: e.target.value })}
+                  placeholder="E.g., Christmas Day"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                disabled={isLoading}
+              >
+                {isLoading ? "Adding..." : "Add Holiday"}
+              </button>
+            </form>
+          </div>
+          <div>
+            <h3 className="text-lg font-medium mb-3">Upcoming Holidays</h3>
+            {holidays.length === 0 ? (
+              <p className="text-gray-500">No holidays scheduled</p>
+            ) : (
+              <ul className="divide-y divide-gray-200">
+                {holidays
+                  .sort((a, b) => new Date(a.holiday_date) - new Date(b.holiday_date))
+                  .map((holiday) => (
+                    <li key={holiday.id} className="py-3 flex justify-between items-center">
+                      <div>
+                        <span className="font-medium">
+                          {format(parseISO(holiday.holiday_date), "MMMM d, yyyy")}
+                        </span>
+                        <p className="text-sm text-gray-600">{holiday.reason}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteHoliday(holiday.id)}
+                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                        disabled={isLoading}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="mt-8 flex justify-end">
+        <button
+          onClick={handleSaveSchedule}
+          disabled={isLoading}
+          className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? "Saving..." : "Save All Changes"}
+        </button>
       </div>
     </div>
   );
 };
 
-export default ScheduleManagement;
+export default ManageSchedule;

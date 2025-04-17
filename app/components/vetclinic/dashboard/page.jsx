@@ -8,6 +8,7 @@ import HomePage from "../home/page";
 import Image from "next/image";
 import ManageSchedule from "../ManageSchedule/page";
 
+
 const VetClinicDashboard = () => {
   const [isVetSidebarOpen, setIsVetSidebar] = useState(false);
   const [activeComponent, setActiveComponent] = useState("VetDashboard");
@@ -18,6 +19,7 @@ const VetClinicDashboard = () => {
   const [authError, setAuthError] = useState(null);
   const supabase = createClient();
   const router = useRouter();
+  const [clinicId, setClinicId] = useState(null);
 
   const toggleSidebar = () => {
     setIsVetSidebar(!isVetSidebarOpen);
@@ -25,7 +27,7 @@ const VetClinicDashboard = () => {
 
   useEffect(() => {
     let mounted = true;
-
+  
     const fetchUserData = async (userId) => {
       try {
         // Fetch user profile
@@ -34,25 +36,27 @@ const VetClinicDashboard = () => {
           .select("*")
           .eq("id", userId)
           .single();
-
+  
         if (profileError || !userData) {
           throw new Error(profileError?.message || "Profile not found");
         }
-
+  
         if (mounted) {
           setUserProfile(userData);
         }
-
+  
         // Fetch clinic profile if exists
         const { data: clinicData, error: clinicError } = await supabase
           .from("veterinary_clinics")
           .select("*")
           .eq("user_id", userId)
           .single();
-
+  
         if (mounted) {
           if (!clinicError && clinicData) {
             setClinicProfile(clinicData);
+            // Store the clinic ID in state
+            setClinicId(clinicData.id); // Add this line
           }
         }
       } catch (error) {
@@ -62,15 +66,15 @@ const VetClinicDashboard = () => {
         }
       }
     };
-
+  
     const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
-
+  
         if (error || !session) {
           throw new Error(error?.message || "No active session");
         }
-
+  
         await fetchUserData(session.user.id);
       } catch (error) {
         console.error("Session check error:", error);
@@ -84,24 +88,25 @@ const VetClinicDashboard = () => {
         }
       }
     };
-
+  
     // Initial session check
     checkSession();
-
+  
     const handleResize = () => {
       if (mounted) {
         setIsVetSidebar(window.innerWidth >= 768);
       }
     };
-
+  
     window.addEventListener("resize", handleResize);
     handleResize();
-
+  
     return () => {
       mounted = false;
       window.removeEventListener("resize", handleResize);
     };
   }, [supabase.auth, router]);
+  
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -296,7 +301,7 @@ const VetClinicDashboard = () => {
             {activeComponent === "pet" && <PetsPage />}
             {activeComponent === "Equipment" && <div>Appointment Content</div>}
             {activeComponent === "symptoms" && <SymptomsList />}
-            {activeComponent === "Schedule" && <ManageSchedule />}
+            {activeComponent === "Schedule" && clinicId && <ManageSchedule clinicId={clinicId} />}
           </main>
         </div>
       </div>
