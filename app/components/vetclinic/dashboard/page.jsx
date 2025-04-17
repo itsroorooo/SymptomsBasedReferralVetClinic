@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import HomePage from "../home/page";
 import Image from "next/image";
+import ManageSchedule from "../ManageSchedule/page";
 
 const VetClinicDashboard = () => {
   const [isVetSidebarOpen, setIsVetSidebar] = useState(false);
@@ -23,82 +24,81 @@ const VetClinicDashboard = () => {
   };
 
   useEffect(() => {
-    // Check for existing session first
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session) {
-          throw new Error("No active session");
-        }
-        
-        // If we have a session, proceed with fetching user data
-        await fetchUserData(session.user.id);
-      } catch (error) {
-        console.error("Session check error:", error);
-        setAuthError(error.message);
-        router.push("/login");
-      } finally {
-        setLoading(false);
-      }
-    };
+    let mounted = true;
 
-    // Fetch user data function
     const fetchUserData = async (userId) => {
       try {
         // Fetch user profile
         const { data: userData, error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', userId)
+          .from("users")
+          .select("*")
+          .eq("id", userId)
           .single();
-        
+
         if (profileError || !userData) {
           throw new Error(profileError?.message || "Profile not found");
         }
 
-        setUserProfile(userData);
-        
+        if (mounted) {
+          setUserProfile(userData);
+        }
+
         // Fetch clinic profile if exists
         const { data: clinicData, error: clinicError } = await supabase
-          .from('veterinary_clinics')
-          .select('*')
-          .eq('user_id', userId)
+          .from("veterinary_clinics")
+          .select("*")
+          .eq("user_id", userId)
           .single();
-        
-        if (!clinicError && clinicData) {
-          setClinicProfile(clinicData);
+
+        if (mounted) {
+          if (!clinicError && clinicData) {
+            setClinicProfile(clinicData);
+          }
         }
       } catch (error) {
         console.error("Data fetch error:", error);
-        setAuthError(error.message);
+        if (mounted) {
+          setAuthError(error.message);
+        }
       }
     };
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT') {
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error || !session) {
+          throw new Error(error?.message || "No active session");
+        }
+
+        await fetchUserData(session.user.id);
+      } catch (error) {
+        console.error("Session check error:", error);
+        if (mounted) {
+          setAuthError(error.message);
           router.push("/login");
-        } else if (session) {
-          // If we get a session (including on initial load), fetch user data
-          await fetchUserData(session.user.id);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
         }
       }
-    );
+    };
 
     // Initial session check
     checkSession();
 
     const handleResize = () => {
-      setIsVetSidebar(window.innerWidth >= 768);
+      if (mounted) {
+        setIsVetSidebar(window.innerWidth >= 768);
+      }
     };
 
     window.addEventListener("resize", handleResize);
     handleResize();
 
     return () => {
-      subscription?.unsubscribe();
+      mounted = false;
       window.removeEventListener("resize", handleResize);
     };
   }, [supabase.auth, router]);
@@ -110,9 +110,9 @@ const VetClinicDashboard = () => {
 
   if (loading) {
     return (
-      <div className="font-[Poppins] h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
+    <div className="flex justify-center items-center h-screen bg-gray-100">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+     </div>
     );
   }
 
@@ -192,10 +192,10 @@ const VetClinicDashboard = () => {
                   {activeComponent === "Patients" && "Patients"}
                   {activeComponent === "Equipments" && "Equipments"}
                   {activeComponent === "Appointments" && "Appointments"}
-                  {activeComponent === "Schedule" && "Clinic Schedule"}
+                  {activeComponent === "Schedule" && "Manage Schedule"}
                 </h1>
               </div>
-              
+
               {/* User Dropdown */}
               {userProfile && (
                 <div className="relative flex items-center space-x-4">
@@ -296,6 +296,7 @@ const VetClinicDashboard = () => {
             {activeComponent === "pet" && <PetsPage />}
             {activeComponent === "Equipment" && <div>Appointment Content</div>}
             {activeComponent === "symptoms" && <SymptomsList />}
+            {activeComponent === "Schedule" && <ManageSchedule />}
           </main>
         </div>
       </div>

@@ -6,9 +6,9 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       auth: {
-        persistSession: true, // Ensure session persistence
-        autoRefreshToken: true, // Automatically refresh tokens
-        detectSessionInUrl: true, // Detect session from URL
+        persistSession: true, 
+        autoRefreshToken: true, 
+        detectSessionInUrl: true, 
       },
     }
   );
