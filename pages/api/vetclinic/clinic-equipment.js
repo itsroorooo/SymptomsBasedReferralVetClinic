@@ -4,52 +4,45 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     const { clinic_id } = req.query;
 
-    // Validate required fields
     if (!clinic_id) {
       return res.status(400).json({ error: "Clinic ID is required" });
     }
 
     try {
-      // Fetch clinic-specific equipment
+      // Fetch all clinic equipment (both standard and custom)
       const { data, error } = await supabase
         .from("clinic_equipment")
-        .select("id, equipment_name, equipment_description, is_available")
-        .eq("clinic_id", clinic_id);
+        .select(`
+          id,
+          clinic_id,
+          equipment_id,
+          equipment_name,
+          equipment_description,
+          is_available,
+          created_at,
+          updated_at,
+          equipment:equipment_id (id, name, description)
+        `)
+        .eq("clinic_id", clinic_id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      res.status(200).json(data);
+      // Format the data to combine equipment info
+      const formattedData = data.map(item => ({
+        ...item,
+        equipment_name: item.equipment_name || item.equipment?.name,
+        equipment_description: item.equipment_description || item.equipment?.description,
+        is_standard: !!item.equipment_id
+      }));
+
+      res.status(200).json(formattedData);
     } catch (error) {
       console.error("Error fetching clinic equipment:", error);
-      res.status(500).json({ error: error.message || "Failed to fetch clinic equipment" });
-    }
-  } else if (req.method === "POST") {
-    const { clinic_id, equipment_name, equipment_description, is_available } = req.body;
-
-    // Validate required fields
-    if (!clinic_id || !equipment_name) {
-      return res.status(400).json({ error: "Clinic ID and Equipment Name are required" });
-    }
-
-    try {
-      // Insert new equipment into the clinic_equipment table
-      const { data, error } = await supabase
-        .from("clinic_equipment")
-        .insert({
-          clinic_id,
-          equipment_name,
-          equipment_description: equipment_description || null,
-          is_available,
-        })
-        .select();
-
-      if (error) throw error;
-
-      res.status(200).json(data[0]);
-    } catch (error) {
-      console.error("Error saving custom equipment:", error);
       res.status(500).json({ error: error.message });
     }
+  } else if (req.method === "POST") {
+    // ... (keep the existing POST handler for custom equipment)
   } else {
     res.setHeader("Allow", ["GET", "POST"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);

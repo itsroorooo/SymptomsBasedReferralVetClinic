@@ -414,7 +414,7 @@ const countries = [
                 {/* Clinic Name */}
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Clinic Name *
+                    Clinic Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -429,7 +429,7 @@ const countries = [
                 {/* Email */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email *
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
@@ -444,7 +444,7 @@ const countries = [
                 {/* Password */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password *
+                    Password <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="password"
@@ -459,7 +459,7 @@ const countries = [
                 {/* Confirm Password */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm Password *
+                    Confirm Password <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="password"
@@ -511,7 +511,7 @@ const countries = [
                 {/* Country */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Country *
+                    Country <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="country"
@@ -530,7 +530,7 @@ const countries = [
                 {/* Province */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Province *
+                    Province <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="province"
@@ -557,7 +557,7 @@ const countries = [
                 {/* City */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    City *
+                    City <span className="text-red-500">*</span>
                   </label>
                   {formData.country === "Philippines" ? (
                     <select
@@ -593,7 +593,7 @@ const countries = [
                 {/* Zip Code */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Zip Code *
+                    Zip Code <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -608,7 +608,7 @@ const countries = [
                 {/* Address */}
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Address *
+                    Address <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -623,7 +623,7 @@ const countries = [
                 {/* Contact Number */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact Number *
+                    Contact Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"

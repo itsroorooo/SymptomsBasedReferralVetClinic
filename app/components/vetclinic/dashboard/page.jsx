@@ -72,22 +72,18 @@ const VetClinicDashboard = () => {
     const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
-  
+    
         if (error || !session) {
           throw new Error(error?.message || "No active session");
         }
-  
-        await fetchUserData(session.user.id);
+    
+        await fetchUserData(session.user.id); // Fetch user data if session exists
       } catch (error) {
         console.error("Session check error:", error);
-        if (mounted) {
-          setAuthError(error.message);
-          router.push("/login");
-        }
+        setAuthError(error.message);
+        router.push("/login"); // Redirect to login if no session
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
   
@@ -111,8 +107,15 @@ const VetClinicDashboard = () => {
   
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw new Error("Failed to log out");
+      }
+      router.push("/login"); // Redirect to login after logout
+    } catch (err) {
+      console.error("Logout error:", err.message);
+    }
   };
 
   if (loading) {
