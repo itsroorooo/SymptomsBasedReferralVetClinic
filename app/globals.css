@@ -48,4 +48,21 @@ body {
 
 .dark .modal {
   background: #1f2937;
+=======
+/* Custom marker styles */
+.clinic-marker-icon {
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Popup styles */
+.leaflet-popup-content {
+  margin: 12px !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px !important;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2) !important;
+
 }
