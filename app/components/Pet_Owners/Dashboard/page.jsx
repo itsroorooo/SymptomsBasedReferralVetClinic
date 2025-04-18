@@ -161,6 +161,7 @@ const Dashboard = () => {
                   {activeComponent === "map" && "Available Clinics"}
                   {activeComponent === "symptoms" && "Report Pet Symptoms"}
                   {activeComponent === "profile" && "My Profile"}
+                  {activeComponent === "settings" && <SettingsPage />}
                 </h1>
               </div>
 
@@ -190,51 +191,28 @@ const Dashboard = () => {
                           </div>
                         </div>
 
-                        <ul className="py-2 text-sm text-gray-700">
+                        <ul
+                          className="py-2 text-sm text-gray-700 dark:text-gray-200"
+                          aria-labelledby="dropdownToggle"
+                        >
                           <li>
-                            <button
-                              onClick={() => {
-                                setActiveComponent("profile");
-                                setIsDropdownOpen(false);
-                              }}
-                              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                            <Link
+                              href="/profile"
+                              className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
                             >
                               Profile
-                            </button>
+                            </Link>
                           </li>
                           <li>
-                            <button
-                              onClick={() => {
-                                setActiveComponent("settings");
-                                setIsDropdownOpen(false);
-                              }}
-                              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                            <Link
+                              href="/components/Pet_Owners/Settings"
+                              className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
                             >
                               Settings
-                            </button>
+                            </Link>
                           </li>
                         </ul>
-                  <ul
-                    className="py-2 text-sm text-gray-700 dark:text-gray-200"
-                    aria-labelledby="dropdownToggle"
-                  >
-                    <li>
-                      <Link
-                        href="/profile"
-                        className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-                      >
-                        Profile
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        href="/components/Pet_Owners/Settings"
-                        className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
-                      >
-                        Settings
-                      </Link>
-                    </li>
-                  </ul>
+
 
                         <div className="py-1">
                           <form action={logout}>
