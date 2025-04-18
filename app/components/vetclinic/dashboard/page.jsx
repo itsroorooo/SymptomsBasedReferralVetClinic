@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import HomePage from "../home/page";
 import Image from "next/image";
 import ManageSchedule from "../ManageSchedule/page";
+import ClinicProfile from "../profile/page";
+import ClinicEquipmentManager from "../equipment/page";
 
 
 const VetClinicDashboard = () => {
@@ -198,6 +200,8 @@ const VetClinicDashboard = () => {
                   {activeComponent === "Equipments" && "Equipments"}
                   {activeComponent === "Appointments" && "Appointments"}
                   {activeComponent === "Schedule" && "Manage Schedule"}
+                  {activeComponent === "ClinicProfile" && "Clinic Profile"}
+
                 </h1>
               </div>
 
@@ -302,6 +306,8 @@ const VetClinicDashboard = () => {
             {activeComponent === "Equipment" && <div>Appointment Content</div>}
             {activeComponent === "symptoms" && <SymptomsList />}
             {activeComponent === "Schedule" && clinicId && <ManageSchedule clinicId={clinicId} />}
+            {activeComponent === "ClinicProfile" && <ClinicProfile clinicId={clinicId} />}
+            {activeComponent === "Equipments" && <ClinicEquipmentManager clinicId={clinicId} />}
           </main>
         </div>
       </div>

@@ -1,0 +1,79 @@
+"use client";
+import React, { useState, useEffect } from 'react';
+
+const EquipmentCheckboxGrid = () => {
+  const [equipmentList, setEquipmentList] = useState([]);
+  const [selectedEquipment, setSelectedEquipment] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Fetch equipment data from your API
+    const fetchEquipment = async () => {
+      try {
+        // Replace with your actual API endpoint
+        const response = await fetch('/api/vetclinic/equipment');
+        if (!response.ok) {
+          throw new Error('Failed to fetch equipment');
+        }
+        const data = await response.json();
+        setEquipmentList(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEquipment();
+  }, []);
+
+  const handleCheckboxChange = (id) => {
+    setSelectedEquipment(prev => 
+      prev.includes(id) 
+        ? prev.filter(item => item !== id) 
+        : [...prev, id]
+    );
+  };
+
+  if (loading) return <div>Loading equipment...</div>;
+  if (error) return <div>Error: {error}</div>;
+
+  // Split equipment into groups of 3 for columns
+  const columnCount = 3;
+  const itemsPerColumn = Math.ceil(equipmentList.length / columnCount);
+  const columns = Array.from({ length: columnCount }, (_, colIndex) => 
+    equipmentList.slice(colIndex * itemsPerColumn, (colIndex + 1) * itemsPerColumn)
+  );
+
+  return (
+    <div className="equipment-checkbox-grid">
+      <h2>Select Equipment</h2>
+      <div className="grid-container" style={{ display: 'flex' }}>
+        {columns.map((column, colIndex) => (
+          <div key={colIndex} className="grid-column" style={{ flex: 1, margin: '0 10px' }}>
+            {column.map(equipment => (
+              <div key={equipment.id} className="equipment-item" style={{ marginBottom: '10px' }}>
+                <label 
+                  className="checkbox-label" 
+                  title={equipment.description || 'No description available'}
+                  style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedEquipment.includes(equipment.id)}
+                    onChange={() => handleCheckboxChange(equipment.id)}
+                    style={{ marginRight: '8px' }}
+                  />
+                  <span>{equipment.name}</span>
+                </label>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default EquipmentCheckboxGrid;
