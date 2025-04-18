@@ -28,6 +28,18 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    const handleClickOutside = () => {
+      setIsDropdownOpen(false);
+    };
+
+    document.body.addEventListener("click", handleClickOutside);
+
+    return () => {
+      document.body.removeEventListener("click", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
     const verifyAndFetch = async () => {
       try {
         setLoading(true);
@@ -134,8 +146,8 @@ const Dashboard = () => {
         {/* Sidebar - fixed width when open */}
         <div
           className={`${isSidebarOpen ? "w-64" : "w-0"} 
-          transition-all duration-300 ease-in-out 
-          fixed md:static z-40 h-full`}
+        transition-all duration-300 ease-in-out 
+        fixed md:static z-40 h-full`}
         >
           <Sidebar
             isSidebarOpen={isSidebarOpen}
@@ -147,9 +159,9 @@ const Dashboard = () => {
 
         {/* Content Area - adjusts margin based on sidebar */}
         <div
-          className={`flex-1 flex flex-col h-full overflow-hidden 
-          ${isSidebarOpen ? "md:ml-0" : "md:ml-0"}
-          transition-all duration-300 ease-in-out`}
+          className={`flex-1 flex flex-col h-full  
+        ${isSidebarOpen ? "md:ml-0" : "md:ml-0"}
+        transition-all duration-300 ease-in-out`}
         >
           {/* Header */}
           <header className="shadow-md py-2 px-4 md:px-10 bg-white">
@@ -162,7 +174,6 @@ const Dashboard = () => {
                   {activeComponent === "map" && "Available Clinics"}
                   {activeComponent === "symptoms" && "Report Pet Symptoms"}
                   {activeComponent === "profile" && "My Profile"}
-                  {activeComponent === "settings" && <SettingsPage />}
                 </h1>
               </div>
 
@@ -171,7 +182,10 @@ const Dashboard = () => {
                 <div className="relative flex items-center space-x-4">
                   <div className="relative">
                     <button
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsDropdownOpen(!isDropdownOpen);
+                      }}
                       className="focus:outline-none"
                     >
                       <Image
@@ -184,7 +198,10 @@ const Dashboard = () => {
                     </button>
 
                     {isDropdownOpen && (
-                      <div className="absolute right-0 mt-2 bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-44">
+                      <div
+                        className="absolute right-0 mt-2 bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-44 z-50"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="px-4 py-3 text-sm text-gray-900">
                           <div>{`${userProfile.first_name} ${userProfile.last_name}`}</div>
                           <div className="font-medium truncate">
@@ -192,10 +209,7 @@ const Dashboard = () => {
                           </div>
                         </div>
 
-                        <ul
-                          className="py-2 text-sm text-gray-700 dark:text-gray-200"
-                          aria-labelledby="dropdownToggle"
-                        >
+                        <ul className="py-2 text-sm text-gray-700">
                           <li>
                             <button
                               onClick={() => {
