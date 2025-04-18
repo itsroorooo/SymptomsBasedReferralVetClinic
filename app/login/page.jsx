@@ -6,13 +6,15 @@ import { userRouter } from "next/navigation";
 import { login } from "./actions";
 import { createClient } from "@/utils/supabase/client";
 import Loading from "../components/Loading";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false); // For route navigation
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Typing animation states
   const [displayedText, setDisplayedText] = useState("");
@@ -200,7 +202,7 @@ export default function LoginPage() {
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   className={`peer w-full px-4 py-2 border-2 rounded-md focus:outline-none focus:border-blue-500 ${
                     passwordError ? "border-red-500" : "border-gray-300"
@@ -213,6 +215,16 @@ export default function LoginPage() {
                 >
                   Password
                 </label>
+
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+
                 {passwordError && (
                   <div className="text-red-500 text-sm mt-1">
                     {passwordError}
