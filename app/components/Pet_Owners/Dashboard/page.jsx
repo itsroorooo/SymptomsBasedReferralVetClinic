@@ -20,6 +20,15 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [roleVerified, setRoleVerified] = useState(false);
+
+  const initialProfileData = {
+    photo: "/default-avatar.jpg",
+    name: "",
+    email: "",
+  };
+
+  // Should be initialized before use
+  const [profile, setProfile] = useState(initialProfileData);
   const supabase = createClient();
   const router = useRouter();
 
@@ -177,13 +186,27 @@ const Dashboard = () => {
                       }}
                       className="focus:outline-none"
                     >
-                      <Image
-                        src={userProfile.profile_picture_url}
-                        alt="User profile"
-                        width={48}
-                        height={48}
-                        className="w-12 h-12 rounded-full cursor-pointer"
-                      />
+                      {userProfile.profile_picture_url ? (
+                        <img
+                          src={`${
+                            userProfile.profile_picture_url
+                          }?${Date.now()}`} // Cache busting
+                          alt="Profile picture"
+                          width={40}
+                          height={40}
+                          className="rounded-full w-10 h-10 object-cover"
+                          key={userProfile.profile_picture_url} // Force re-render when URL changes
+                        />
+                      ) : (
+                        <Image
+                          src="/default-avatar.jpg"
+                          alt="Profile picture"
+                          width={40}
+                          height={40}
+                          className="rounded-full w-10 h-10 object-cover"
+                          priority
+                        />
+                      )}
                     </button>
 
                     {isDropdownOpen && (

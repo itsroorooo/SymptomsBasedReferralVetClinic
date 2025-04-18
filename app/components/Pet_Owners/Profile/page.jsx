@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { createClient } from "@/utils/supabase/client";
-import { useRouter } from "next/navigation";
+import { useProfileActions } from "./actions";
 
 const ProfilePage = ({ onPhotoChange }) => {
   const [profile, setProfile] = useState({
@@ -14,164 +13,38 @@ const ProfilePage = ({ onPhotoChange }) => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
-  const router = useRouter();
+  const [imageUrl, setImageUrl] = useState("");
+
+  const { fetchProfile, handlePhotoUpload, handleSubmit } = useProfileActions();
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const loadProfile = async () => {
       try {
-        setIsLoading(true);
-
-        // Get the current user
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
-        if (authError || !user) {
-          router.push("/login");
-          return;
+        const profileData = await fetchProfile(setProfile, setIsLoading);
+        if (profileData) {
+          setProfile(profileData);
         }
-
-        // Fetch pet owner profile data
-        const { data: profileData, error: profileError } = await supabase
-          .from("pet_owner_profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        if (profileError) throw profileError;
-
-        setProfile({
-          firstName: profileData?.first_name || "",
-          lastName: profileData?.last_name || "",
-          email: user.email || "",
-          contactNumber: profileData?.contact_number || "",
-          photo:
-            profileData?.profile_picture_url || "/image/default-avatar.png",
-        });
       } catch (error) {
-        console.error("Failed to fetch profile:", error);
-      } finally {
-        setIsLoading(false);
+        console.error("Error loading profile:", error);
       }
     };
 
-    fetchProfile();
-  }, [router, supabase]);
+    loadProfile();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setProfile((prevProfile) => ({
-      ...prevProfile,
-      [name]: value,
-    }));
+    setProfile((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePhotoUpload = async (e) => {
+  const onPhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    if (file.size > 1 * 1024 * 1024) {
-      alert("Image size should be under 1MB.");
-      return;
-    }
-
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    img.onload = async () => {
-      if (img.width !== img.height) {
-        alert("Image must have a 1:1 aspect ratio.");
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append("photo", file);
-
-      try {
-        // Get current user
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        // Upload to Supabase Storage
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-        const filePath = `profile_photos/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("profile-photos")
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        // Get public URL
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("profile-photos").getPublicUrl(filePath);
-
-        // Update profile in database
-        const { error: updateError } = await supabase
-          .from("pet_owner_profiles")
-          .update({ profile_picture_url: publicUrl })
-          .eq("id", user.id);
-
-        if (updateError) throw updateError;
-
-        // Update local state
-        setProfile((prev) => ({
-          ...prev,
-          photo: publicUrl,
-        }));
-
-        // Notify parent component
-        if (onPhotoChange) onPhotoChange(publicUrl);
-      } catch (error) {
-        console.error("Photo upload failed:", error);
-        alert("Photo upload failed. Please try again.");
-      }
-    };
+    await handlePhotoUpload(file, setImageUrl, setProfile, setIsLoading);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    // Email validation
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
-      alert("Please enter a valid email address");
-      return;
-    }
-
-    // Optional contact number validation
-    if (profile.contactNumber && !/^[\d\s+-]+$/.test(profile.contactNumber)) {
-      alert("Please enter a valid contact number");
-      return;
-    }
-
-    try {
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      // Update profile in database
-      const { error } = await supabase
-        .from("pet_owner_profiles")
-        .update({
-          first_name: profile.firstName,
-          last_name: profile.lastName,
-          contact_number: profile.contactNumber,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-
-      if (error) throw error;
-
-      setIsEditing(false);
-      alert("Profile updated successfully!");
-    } catch (error) {
-      console.error("Profile update failed:", error);
-      alert("Failed to update profile. Please try again.");
-    }
+  const onSubmit = async (e) => {
+    await handleSubmit(e, profile, setProfile, setIsLoading, setIsEditing);
   };
 
   if (isLoading) {
@@ -195,11 +68,12 @@ const ProfilePage = ({ onPhotoChange }) => {
           />
           <input
             type="file"
-            accept="image/*"
-            onChange={handlePhotoUpload}
+            accept="image/jpeg,image/png"
+            onChange={onPhotoUpload}
             className="hidden"
             id="photo-upload"
           />
+          {imageUrl && <img src={imageUrl} alt="Profile" width={100} />}
           <label
             htmlFor="photo-upload"
             className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600"
@@ -207,12 +81,12 @@ const ProfilePage = ({ onPhotoChange }) => {
             Upload Photo
           </label>
           <p className="text-sm text-gray-500 mt-2 text-center">
-            Image size should be under 1MB and image ratio needs to be 1:1.
+            Image size should be under 2MB
           </p>
         </div>
 
         <div className="w-2/3">
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={onSubmit}>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -254,7 +128,7 @@ const ProfilePage = ({ onPhotoChange }) => {
                 value={profile.email}
                 onChange={handleInputChange}
                 className="w-full p-2 border border-gray-300 rounded"
-                disabled={true} // Email is not editable in this version
+                disabled={true}
                 required
               />
             </div>
@@ -286,9 +160,10 @@ const ProfilePage = ({ onPhotoChange }) => {
                   </button>
                   <button
                     type="submit"
+                    disabled={isLoading}
                     className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                   >
-                    Save Changes
+                    {isLoading ? "Saving..." : "Save Changes"}
                   </button>
                 </>
               ) : (
