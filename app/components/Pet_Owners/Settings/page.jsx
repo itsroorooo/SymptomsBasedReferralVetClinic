@@ -7,8 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 import Sidebar from "../Sidebar/page";
 import Image from "next/image";
 import { logout } from "@/app/logout/actions";
-import { useTheme } from "../../Pet_Owners/Settings/ThemeContext";
-import Dashboard from "../Dashboard/page";
+import { useTheme } from "./ThemeContext";
 
 if (typeof window !== "undefined") {
   Modal.setAppElement("body");

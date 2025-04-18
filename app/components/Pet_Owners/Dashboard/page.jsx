@@ -11,7 +11,7 @@ import { createClient } from "@/utils/supabase/client";
 import VetMap from "../Map/page";
 import { useRouter } from "next/navigation";
 import ProfilePage from "../profile/page";
-import SettingsPage from "../Settings/page";
+import SettingsPage from "../settings/page";
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -26,18 +26,6 @@ const Dashboard = () => {
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
-
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setIsDropdownOpen(false);
-    };
-
-    document.body.addEventListener("click", handleClickOutside);
-
-    return () => {
-      document.body.removeEventListener("click", handleClickOutside);
-    };
-  }, []);
 
   useEffect(() => {
     const verifyAndFetch = async () => {
@@ -174,6 +162,7 @@ const Dashboard = () => {
                   {activeComponent === "map" && "Available Clinics"}
                   {activeComponent === "symptoms" && "Report Pet Symptoms"}
                   {activeComponent === "profile" && "My Profile"}
+                  {activeComponent === "settings" && "My Settings"}
                 </h1>
               </div>
 
@@ -271,6 +260,7 @@ const Dashboard = () => {
                 }}
               />
             )}
+            {activeComponent === "settings" && <SettingsPage />}
           </main>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { Poppins } from "next/font/google";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "./components/Pet_Owners/Settings/ThemeContext";
+import { ThemeProvider } from "./components/Pet_Owners/settings/ThemeContext";
 
 const poppins = Poppins({
   subsets: ["latin"],
