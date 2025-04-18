@@ -8,27 +8,27 @@ import Sidebar from "../Sidebar/page";
 import Image from "next/image";
 import { logout } from "@/app/logout/actions";
 import { useTheme } from "../../Pet_Owners/Settings/ThemeContext";
+import Dashboard from "../Dashboard/page";
 
-
-if (typeof window !== 'undefined') {
-  Modal.setAppElement('body');
+if (typeof window !== "undefined") {
+  Modal.setAppElement("body");
 }
 
 const SettingsPage = () => {
   useEffect(() => {
     const initializeModal = () => {
       try {
-        if (typeof document !== 'undefined') {
-          const appElement = document.getElementById('__next');
+        if (typeof document !== "undefined") {
+          const appElement = document.getElementById("__next");
           if (appElement) {
-            Modal.setAppElement('#__next');
+            Modal.setAppElement("#__next");
           } else {
-            console.warn('#__next element not found, retrying...');
+            console.warn("#__next element not found, retrying...");
             setTimeout(initializeModal, 100);
           }
         }
       } catch (error) {
-        console.error('Error initializing modal:', error);
+        console.error("Error initializing modal:", error);
       }
     };
 
@@ -60,7 +60,6 @@ const SettingsPage = () => {
     darkMode: theme === "dark",
   });
 
-
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     setError("");
@@ -86,8 +85,11 @@ const SettingsPage = () => {
       setIsSaving(true);
 
       // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
       if (userError || !user) {
         setError("User not authenticated. Please login again.");
         setIsSaving(false);
@@ -112,77 +114,79 @@ const SettingsPage = () => {
       // Show the logout prompt before actually updating the password
       setShowLogoutPrompt(true);
       setSuccess("Please confirm your action below");
-          
-        } catch (err) {
-          console.error("Error updating password:", err);
-          setError("An unexpected error occurred. Please try again.");
-        } finally {
-          setIsSaving(false);
-        }
-      };
+    } catch (err) {
+      console.error("Error updating password:", err);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-      const handleLogout = async () => {
-        try {
-          // Now actually update the password
-          const { error: updateError } = await supabase.auth.updateUser({
-            password: tempNewPassword,
-          });
-    
-          if (updateError) {
-            console.error("Failed to update password:", updateError);
-            return;
-          }
-    
-          // Update password in users table
-          const { data: { user } } = await supabase.auth.getUser();
-          await supabase
-            .from('users')
-            .update({ 
-              password_updated_at: new Date().toISOString() 
-            })
-            .eq('id', user.id);
-    
-          // Log out after password change
-          await logout();
-          router.push("/login");
-        } catch (err) {
-          console.error("Error during logout:", err);
-        }
-      };
-      
-      const handleContinue = async () => {
-        try {
-          // Update the password when user chooses to continue
-          const { error: updateError } = await supabase.auth.updateUser({
-            password: tempNewPassword,
-          });
-    
-          if (updateError) {
-            console.error("Failed to update password:", updateError);
-            return;
-          }
-    
-          // Update password in users table
-          const { data: { user } } = await supabase.auth.getUser();
-          await supabase
-            .from('users')
-            .update({ 
-              password_updated_at: new Date().toISOString() 
-            })
-            .eq('id', user.id);
-    
-          setShowLogoutPrompt(false);
-          setSuccess("Password updated successfully!");
-          setCurrentPassword("");
-          setNewPassword("");
-          setConfirmPassword("");
-          setTempNewPassword("");
-          setShowPasswordChange(false);
-        } catch (err) {
-          console.error("Error updating password:", err);
-        }
-      };
-  
+  const handleLogout = async () => {
+    try {
+      // Now actually update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: tempNewPassword,
+      });
+
+      if (updateError) {
+        console.error("Failed to update password:", updateError);
+        return;
+      }
+
+      // Update password in users table
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      await supabase
+        .from("users")
+        .update({
+          password_updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      // Log out after password change
+      await logout();
+      router.push("/login");
+    } catch (err) {
+      console.error("Error during logout:", err);
+    }
+  };
+
+  const handleContinue = async () => {
+    try {
+      // Update the password when user chooses to continue
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: tempNewPassword,
+      });
+
+      if (updateError) {
+        console.error("Failed to update password:", updateError);
+        return;
+      }
+
+      // Update password in users table
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      await supabase
+        .from("users")
+        .update({
+          password_updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      setShowLogoutPrompt(false);
+      setSuccess("Password updated successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTempNewPassword("");
+      setShowPasswordChange(false);
+    } catch (err) {
+      console.error("Error updating password:", err);
+    }
+  };
 
   // Apply theme to the body background
   useEffect(() => {
@@ -204,7 +208,6 @@ const SettingsPage = () => {
       [name]: type === "checkbox" ? checked : value,
     }));
   };
-
 
   // Initialize dark mode from localStorage
   useEffect(() => {
@@ -333,7 +336,9 @@ const SettingsPage = () => {
         {/* Fixed Header */}
         <header className="bg-white dark:bg-gray-800 shadow-sm z-10">
           <div className="flex items-center justify-between px-6 py-4">
-            <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">Settings</h1>
+            <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              Settings
+            </h1>
 
             {/* User Dropdown (with dark mode classes) */}
             {userProfile && (
@@ -448,13 +453,19 @@ const SettingsPage = () => {
               <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 {activeTab === "preferences" && (
                   <form onSubmit={handleSubmit}>
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">Preferences</h2>
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">
+                      Preferences
+                    </h2>
 
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">Dark Mode</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Toggle between light and dark theme</p>
+                          <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                            Dark Mode
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Toggle between light and dark theme
+                          </p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
@@ -470,8 +481,12 @@ const SettingsPage = () => {
                       {/* Rest of your form fields with dark mode classes */}
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">Language</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Interface language</p>
+                          <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                            Language
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Interface language
+                          </p>
                         </div>
                         <select className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                           <option>English</option>
@@ -480,13 +495,23 @@ const SettingsPage = () => {
 
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">Time Zone</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Your local time zone</p>
+                          <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                            Time Zone
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Your local time zone
+                          </p>
                         </div>
                         <select className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                          <option>(GMT-12:00) International Date Line West</option>
-                          <option>(GMT-08:00) Pacific Time (US & Canada)</option>
-                          <option>(GMT-05:00) Eastern Time (US & Canada)</option>
+                          <option>
+                            (GMT-12:00) International Date Line West
+                          </option>
+                          <option>
+                            (GMT-08:00) Pacific Time (US & Canada)
+                          </option>
+                          <option>
+                            (GMT-05:00) Eastern Time (US & Canada)
+                          </option>
                           <option>(GMT+00:00) Greenwich Mean Time</option>
                         </select>
                       </div>
@@ -505,7 +530,7 @@ const SettingsPage = () => {
                         disabled={isSaving}
                         className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {isSaving ? 'Saving...' : 'Save Preferences'}
+                        {isSaving ? "Saving..." : "Save Preferences"}
                       </button>
                     </div>
                   </form>
@@ -513,13 +538,19 @@ const SettingsPage = () => {
 
                 {activeTab === "notifications" && (
                   <form onSubmit={handleSubmit}>
-                    <h2 className="text-xl font-semibold text-gray-800 mb-6">Notification Preferences</h2>
+                    <h2 className="text-xl font-semibold text-gray-800 mb-6">
+                      Notification Preferences
+                    </h2>
 
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-sm font-medium text-gray-800">Email Notifications</h3>
-                          <p className="text-sm text-gray-500">Receive email notifications</p>
+                          <h3 className="text-sm font-medium text-gray-800">
+                            Email Notifications
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            Receive email notifications
+                          </p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
@@ -534,7 +565,9 @@ const SettingsPage = () => {
                       </div>
 
                       <div className="border-t border-gray-200 pt-6">
-                        <h3 className="text-sm font-medium text-gray-800 mb-4">Notification Types</h3>
+                        <h3 className="text-sm font-medium text-gray-800 mb-4">
+                          Notification Types
+                        </h3>
 
                         <div className="space-y-4">
                           <div className="flex items-start">
@@ -547,8 +580,15 @@ const SettingsPage = () => {
                               />
                             </div>
                             <div className="ml-3 text-sm">
-                              <label htmlFor="appointment-reminders" className="font-medium text-gray-700">Appointment Reminders</label>
-                              <p className="text-gray-500">Get reminders for upcoming appointments</p>
+                              <label
+                                htmlFor="appointment-reminders"
+                                className="font-medium text-gray-700"
+                              >
+                                Appointment Reminders
+                              </label>
+                              <p className="text-gray-500">
+                                Get reminders for upcoming appointments
+                              </p>
                             </div>
                           </div>
 
@@ -562,8 +602,15 @@ const SettingsPage = () => {
                               />
                             </div>
                             <div className="ml-3 text-sm">
-                              <label htmlFor="health-alerts" className="font-medium text-gray-700">Health Alerts</label>
-                              <p className="text-gray-500">Important health notifications about your pets</p>
+                              <label
+                                htmlFor="health-alerts"
+                                className="font-medium text-gray-700"
+                              >
+                                Health Alerts
+                              </label>
+                              <p className="text-gray-500">
+                                Important health notifications about your pets
+                              </p>
                             </div>
                           </div>
 
@@ -577,8 +624,15 @@ const SettingsPage = () => {
                               />
                             </div>
                             <div className="ml-3 text-sm">
-                              <label htmlFor="promotional" className="font-medium text-gray-700">Promotional Offers</label>
-                              <p className="text-gray-500">Special offers and discounts from our partners</p>
+                              <label
+                                htmlFor="promotional"
+                                className="font-medium text-gray-700"
+                              >
+                                Promotional Offers
+                              </label>
+                              <p className="text-gray-500">
+                                Special offers and discounts from our partners
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -598,21 +652,27 @@ const SettingsPage = () => {
                         disabled={isSaving}
                         className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {isSaving ? 'Saving...' : 'Save Preferences'}
+                        {isSaving ? "Saving..." : "Save Preferences"}
                       </button>
                     </div>
                   </form>
                 )}
 
-{activeTab === "security" && (
+                {activeTab === "security" && (
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">Security Settings</h2>
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">
+                      Security Settings
+                    </h2>
 
                     <div className="space-y-6">
                       <div className="border-b border-gray-200 dark:border-gray-700 pb-6">
-                        <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Change Password</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Update your account password</p>
-                        
+                        <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
+                          Change Password
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                          Update your account password
+                        </p>
+
                         {!showPasswordChange ? (
                           <button
                             onClick={() => setShowPasswordChange(true)}
@@ -621,7 +681,10 @@ const SettingsPage = () => {
                             Change Password
                           </button>
                         ) : (
-                          <form onSubmit={handlePasswordChange} className="space-y-4">
+                          <form
+                            onSubmit={handlePasswordChange}
+                            className="space-y-4"
+                          >
                             {error && (
                               <div className="p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 rounded-md">
                                 {error}
@@ -632,23 +695,31 @@ const SettingsPage = () => {
                                 {success}
                               </div>
                             )}
-                            
+
                             <div>
-                              <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              <label
+                                htmlFor="currentPassword"
+                                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                              >
                                 Current Password
                               </label>
                               <input
                                 type="password"
                                 id="currentPassword"
                                 value={currentPassword}
-                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                onChange={(e) =>
+                                  setCurrentPassword(e.target.value)
+                                }
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 required
                               />
                             </div>
-                            
+
                             <div>
-                              <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              <label
+                                htmlFor="newPassword"
+                                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                              >
                                 New Password
                               </label>
                               <input
@@ -661,16 +732,21 @@ const SettingsPage = () => {
                                 minLength={6}
                               />
                             </div>
-                            
+
                             <div>
-                              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              <label
+                                htmlFor="confirmPassword"
+                                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                              >
                                 Confirm New Password
                               </label>
                               <input
                                 type="password"
                                 id="confirmPassword"
                                 value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                onChange={(e) =>
+                                  setConfirmPassword(e.target.value)
+                                }
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 required
                                 minLength={6}
@@ -681,14 +757,19 @@ const SettingsPage = () => {
                               onRequestClose={() => setShowLogoutPrompt(false)}
                               className="modal"
                               overlayClassName="modal-overlay"
-                              appElement={typeof document !== 'undefined' ? document.getElementById('__next') : undefined}
+                              appElement={
+                                typeof document !== "undefined"
+                                  ? document.getElementById("__next")
+                                  : undefined
+                              }
                             >
                               <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md">
                                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                                   Password Change Confirmation
                                 </h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                                  For security reasons, we recommend logging out of all sessions after changing your password.
+                                  For security reasons, we recommend logging out
+                                  of all sessions after changing your password.
                                   Would you like to log out now?
                                 </p>
                                 <div className="flex justify-end space-x-3">
@@ -712,7 +793,11 @@ const SettingsPage = () => {
                               onRequestClose={() => setShowErrorModal(false)}
                               className="modal"
                               overlayClassName="modal-overlay"
-                              appElement={typeof document !== 'undefined' ? document.getElementById('__next') : undefined}
+                              appElement={
+                                typeof document !== "undefined"
+                                  ? document.getElementById("__next")
+                                  : undefined
+                              }
                             >
                               <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md">
                                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
@@ -751,7 +836,7 @@ const SettingsPage = () => {
                                 disabled={isSaving}
                                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                {isSaving ? 'Updating...' : 'Update Password'}
+                                {isSaving ? "Updating..." : "Update Password"}
                               </button>
                             </div>
                           </form>
@@ -759,12 +844,18 @@ const SettingsPage = () => {
                       </div>
 
                       <div className="border-b border-gray-200 pb-6">
-                        <h3 className="text-sm font-medium text-gray-800 mb-2">Two-Factor Authentication</h3>
-                        <p className="text-sm text-gray-500 mb-4">Add an extra layer of security to your account</p>
+                        <h3 className="text-sm font-medium text-gray-800 mb-2">
+                          Two-Factor Authentication
+                        </h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Add an extra layer of security to your account
+                        </p>
                         <div className="flex items-center">
-                          <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">Disabled</span>
+                          <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                            Disabled
+                          </span>
                           <button
-                            onClick={() => router.push('/enable-2fa')}
+                            onClick={() => router.push("/enable-2fa")}
                             className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                           >
                             Enable
@@ -773,13 +864,21 @@ const SettingsPage = () => {
                       </div>
 
                       <div className="pb-6">
-                        <h3 className="text-sm font-medium text-gray-800 mb-2">Active Sessions</h3>
-                        <p className="text-sm text-gray-500 mb-4">Manage your logged-in devices</p>
+                        <h3 className="text-sm font-medium text-gray-800 mb-2">
+                          Active Sessions
+                        </h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Manage your logged-in devices
+                        </p>
                         <div className="bg-gray-50 p-4 rounded-md">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm font-medium">Chrome on Windows</p>
-                              <p className="text-xs text-gray-500">Last active: 2 hours ago</p>
+                              <p className="text-sm font-medium">
+                                Chrome on Windows
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Last active: 2 hours ago
+                              </p>
                             </div>
                             <button className="text-red-600 hover:text-red-800 text-sm font-medium">
                               Log out
@@ -798,6 +897,5 @@ const SettingsPage = () => {
     </div>
   );
 };
-
 
 export default SettingsPage;

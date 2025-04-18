@@ -10,7 +10,8 @@ import SymptomsList from "../SymptomsList/page";
 import { createClient } from "@/utils/supabase/client";
 import VetMap from "../Map/page";
 import { useRouter } from "next/navigation";
-import ProfilePage from "../Profile/page";
+import ProfilePage from "../profile/page";
+import SettingsPage from "../Settings/page";
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -196,23 +197,28 @@ const Dashboard = () => {
                           aria-labelledby="dropdownToggle"
                         >
                           <li>
-                            <Link
-                              href="/profile"
-                              className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
+                            <button
+                              onClick={() => {
+                                setActiveComponent("profile");
+                                setIsDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                             >
                               Profile
-                            </Link>
+                            </button>
                           </li>
                           <li>
-                            <Link
-                              href="/components/Pet_Owners/Settings"
-                              className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
+                            <button
+                              onClick={() => {
+                                setActiveComponent("settings");
+                                setIsDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                             >
                               Settings
-                            </Link>
+                            </button>
                           </li>
                         </ul>
-
 
                         <div className="py-1">
                           <form action={logout}>
