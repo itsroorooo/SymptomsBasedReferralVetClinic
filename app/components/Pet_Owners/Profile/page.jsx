@@ -102,15 +102,11 @@ const ProfilePage = ({ onPhotoChange }) => {
   }
 
   return (
-    <div className="font-[Poppins] p-6 md:p-10 bg-gray-50 flex flex-col min-h-[80.5vh]">
-      <div className="max-w-6xl mx-auto w-full">
-        <h1 className="text-4xl font-bold text-gray-800 mb-10">
-          Profile Settings
-        </h1>
-
+    <div className="font-[Poppins] p-6 md:p-10 bg-gradient-to-br from-blue-50 to-purple-50 flex flex-col min-h-[80.5vh]">
+      <div className="max-w-6xl mx-auto w-full m-20">
         <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-10">
           {/* Profile Picture Section */}
-          <div className="md:w-1/3 flex flex-col items-center">
+          <div className="md:w-1/3 flex flex-col items-center mt-8">
             <div className="relative mb-6">
               <img
                 src={displayPhoto}
@@ -145,7 +141,7 @@ const ProfilePage = ({ onPhotoChange }) => {
               className="hidden"
               id="photo-upload"
             />
-
+            <h1 className="text-3xl font-bold">Profile</h1>
             <p className="text-xs text-gray-500 mt-4 text-center">
               JPG, PNG, or WEBP, max 2MB
             </p>
@@ -206,7 +202,7 @@ const ProfilePage = ({ onPhotoChange }) => {
                   disabled={true}
                   required
                 />
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-red-500 mt-2">
                   Email cannot be changed
                 </p>
               </div>
