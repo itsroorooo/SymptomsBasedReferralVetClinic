@@ -13,7 +13,8 @@ const ProfilePage = ({ onPhotoChange }) => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [imageUrl, setImageUrl] = useState("");
+  const [tempPhotoFile, setTempPhotoFile] = useState(null);
+  const [tempProfile, setTempProfile] = useState(null);
 
   const { fetchProfile, handlePhotoUpload, handleSubmit } = useProfileActions();
 
@@ -40,12 +41,57 @@ const ProfilePage = ({ onPhotoChange }) => {
   const onPhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    await handlePhotoUpload(file, setImageUrl, setProfile, setIsLoading);
+
+    // Create a temporary URL for preview
+    const previewUrl = URL.createObjectURL(file);
+    setTempPhotoFile({
+      file,
+      previewUrl,
+    });
   };
 
   const onSubmit = async (e) => {
-    await handleSubmit(e, profile, setProfile, setIsLoading, setIsEditing);
+    try {
+      setIsLoading(true);
+
+      let photoUrl = profile.photo;
+
+      // If there's a new photo file, upload it first
+      if (tempPhotoFile) {
+        photoUrl = await handlePhotoUpload(tempPhotoFile.file);
+        if (photoUrl) {
+          setProfile((prev) => ({ ...prev, photo: photoUrl }));
+          if (onPhotoChange) {
+            // Check if callback exists before calling
+            onPhotoChange(photoUrl); // Notify parent of photo change
+          }
+        }
+      }
+
+      await handleSubmit(e, profile, setProfile, setIsLoading, setIsEditing);
+      setTempPhotoFile(null);
+    } catch (error) {
+      console.error("Error saving profile:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const onCancel = () => {
+    setIsEditing(false);
+    setTempPhotoFile(null); // Clear the temporary photo file
+    if (tempProfile) {
+      setProfile(tempProfile); // Restore original profile
+      setTempProfile(null);
+    }
+  };
+
+  const onEditStart = () => {
+    setTempProfile({ ...profile }); // Save current profile state
+    setIsEditing(true);
+  };
+
+  const displayPhoto = tempPhotoFile?.previewUrl || profile.photo;
 
   if (isLoading) {
     return (
@@ -67,7 +113,7 @@ const ProfilePage = ({ onPhotoChange }) => {
           <div className="md:w-1/3 flex flex-col items-center">
             <div className="relative mb-6">
               <img
-                src={profile.photo}
+                src={displayPhoto}
                 alt="Profile"
                 className="w-48 h-48 rounded-full object-cover border-4 border-white shadow-md"
               />
@@ -94,22 +140,14 @@ const ProfilePage = ({ onPhotoChange }) => {
 
             <input
               type="file"
-              accept="image/jpeg,image/png"
+              accept="image/jpeg,image/png,image/webp"
               onChange={onPhotoUpload}
               className="hidden"
               id="photo-upload"
             />
 
-            {imageUrl && (
-              <img
-                src={imageUrl}
-                alt="Uploaded Preview"
-                className="mt-4 w-24 h-24 rounded-full object-cover"
-              />
-            )}
-
             <p className="text-xs text-gray-500 mt-4 text-center">
-              JPG or PNG, max 2MB
+              JPG, PNG, or WEBP, max 2MB
             </p>
           </div>
 
@@ -197,7 +235,7 @@ const ProfilePage = ({ onPhotoChange }) => {
                   <>
                     <button
                       type="button"
-                      onClick={() => setIsEditing(false)}
+                      onClick={onCancel}
                       className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       Cancel
@@ -238,7 +276,7 @@ const ProfilePage = ({ onPhotoChange }) => {
                   </>
                 ) : (
                   <button
-                    onClick={() => setIsEditing(true)}
+                    onClick={onEditStart}
                     className="px-6 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                   >
                     Edit Profile

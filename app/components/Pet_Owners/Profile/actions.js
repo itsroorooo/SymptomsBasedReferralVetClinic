@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export const useProfileActions = () => {
   const supabase = createClient();
@@ -10,12 +10,75 @@ export const useProfileActions = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [imageUrl, setImageUrl] = useState("");
+  const [tempImageUrl, setTempImageUrl] = useState(null); // For preview before saving
+  const [subscription, setSubscription] = useState(null);
+  const [originalImageUrl, setOriginalImageUrl] = useState(""); // To store original image for cancellation
+
+  // Set up realtime subscription when component mounts
+  useEffect(() => {
+    const setupRealtime = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Subscribe to changes in the user's profile
+      const newSubscription = supabase
+        .channel("profile_changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "pet_owner_profiles",
+            filter: `id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (
+              payload.eventType === "UPDATE" ||
+              payload.eventType === "INSERT"
+            ) {
+              const newProfile = {
+                ...userProfile,
+                firstName: payload.new.first_name || "",
+                lastName: payload.new.last_name || "",
+                contactNumber: payload.new.contact_number || "",
+                photo:
+                  payload.new.profile_picture_url ||
+                  "/image/default-avatar.png",
+              };
+              setUserProfile(newProfile);
+              if (payload.new.profile_picture_url) {
+                setImageUrl(payload.new.profile_picture_url);
+                setOriginalImageUrl(payload.new.profile_picture_url);
+              }
+            }
+          }
+        )
+        .subscribe();
+
+      setSubscription(newSubscription);
+
+      return () => {
+        if (newSubscription) {
+          supabase.removeChannel(newSubscription);
+        }
+      };
+    };
+
+    setupRealtime();
+
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
+  }, []);
 
   const fetchProfile = async (setProfile, setIsLoading) => {
     try {
       setIsLoading(true);
 
-      // Get the current user
       const {
         data: { user },
         error: authError,
@@ -25,7 +88,6 @@ export const useProfileActions = () => {
         return;
       }
 
-      // Fetch pet owner profile data
       const { data: profileData, error: profileError } = await supabase
         .from("pet_owner_profiles")
         .select("*")
@@ -34,13 +96,19 @@ export const useProfileActions = () => {
 
       if (profileError) throw profileError;
 
-      return {
+      const profile = {
         firstName: profileData?.first_name || "",
         lastName: profileData?.last_name || "",
         email: user.email || "",
         contactNumber: profileData?.contact_number || "",
         photo: profileData?.profile_picture_url || "/image/default-avatar.png",
       };
+
+      setUserProfile(profile);
+      setImageUrl(profile.photo);
+      setOriginalImageUrl(profile.photo); // Store original image URL
+
+      return profile;
     } catch (error) {
       console.error("Failed to fetch profile:", error);
       throw error;
@@ -49,7 +117,27 @@ export const useProfileActions = () => {
     }
   };
 
-  const handlePhotoUpload = async (file, setProfile) => {
+  const handlePhotoSelect = (file) => {
+    if (!file) return;
+
+    // Validate file type
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      alert("Only JPG, PNG, or WEBP images are allowed");
+      return;
+    }
+
+    // Validate file size (2MB max)
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image must be smaller than 2MB");
+      return;
+    }
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setTempImageUrl(previewUrl);
+  };
+
+  const handlePhotoUpload = async (file) => {
     try {
       setIsLoading(true);
 
@@ -91,21 +179,6 @@ export const useProfileActions = () => {
         data: { publicUrl },
       } = supabase.storage.from("profile-photos").getPublicUrl(filePath);
 
-      // Update profile in database
-      const { error: profileError } = await supabase
-        .from("pet_owner_profiles")
-        .update({ profile_picture_url: publicUrl })
-        .eq("id", user.id);
-
-      if (profileError) throw profileError;
-
-      // Update local state
-      setImageUrl(publicUrl);
-      setUserProfile((prev) => ({
-        ...prev,
-        profile_picture_url: publicUrl,
-      }));
-
       return publicUrl;
     } catch (error) {
       console.error("Photo upload error:", error);
@@ -114,6 +187,15 @@ export const useProfileActions = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    // Revert to original image
+    if (tempImageUrl) {
+      URL.revokeObjectURL(tempImageUrl);
+      setTempImageUrl(null);
+    }
+    setImageUrl(originalImageUrl);
   };
 
   const handleSubmit = async (
@@ -130,13 +212,16 @@ export const useProfileActions = () => {
     try {
       setIsLoading(true);
 
-      // Get current user
       const {
         data: { user },
         error: authError,
       } = await supabase.auth.getUser();
-      if (authError || !user?.id)
-        throw authError || new Error("User not authenticated");
+      if (authError || !user?.id) throw new Error("User not authenticated");
+
+      // First handle photo upload if there's a temp image
+      if (tempImageUrl) {
+        await handlePhotoUpload();
+      }
 
       // Prepare update data
       const updateData = {
@@ -146,17 +231,6 @@ export const useProfileActions = () => {
         updated_at: new Date().toISOString(),
       };
 
-      // Handle profile photo if changed
-      const photoInput = form.querySelector('input[type="file"]');
-      if (photoInput?.files.length > 0) {
-        await handlePhotoUpload(
-          photoInput.files[0],
-          null,
-          setProfile,
-          setIsLoading
-        );
-      }
-
       // Update profile in database
       const { error: updateError } = await supabase
         .from("pet_owner_profiles")
@@ -165,8 +239,6 @@ export const useProfileActions = () => {
 
       if (updateError) throw updateError;
 
-      // Update local state
-      setProfile((prev) => ({ ...prev, ...updateData }));
       setIsEditing(false);
       alert("Profile updated successfully!");
     } catch (error) {
@@ -178,8 +250,13 @@ export const useProfileActions = () => {
   };
 
   return {
+    userProfile,
+    imageUrl: tempImageUrl || imageUrl, // Show temp image if exists
+    isLoading,
     fetchProfile,
+    handlePhotoSelect,
     handlePhotoUpload,
     handleSubmit,
+    handleCancel,
   };
 };

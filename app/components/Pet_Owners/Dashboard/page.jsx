@@ -37,6 +37,35 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    if (!userProfile?.id) return;
+
+    const channel = supabase
+      .channel("profile_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pet_owner_profiles",
+          filter: `id=eq.${userProfile.id}`,
+        },
+        (payload) => {
+          if (payload.new.profile_picture_url) {
+            setUserProfile((prev) => ({
+              ...prev,
+              profile_picture_url: payload.new.profile_picture_url,
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userProfile?.id, supabase]);
+
+  useEffect(() => {
     const verifyAndFetch = async () => {
       try {
         setLoading(true);
@@ -190,12 +219,12 @@ const Dashboard = () => {
                         <img
                           src={`${
                             userProfile.profile_picture_url
-                          }?${Date.now()}`} // Cache busting
+                          }?${Date.now()}`}
                           alt="Profile picture"
                           width={40}
                           height={40}
                           className="rounded-full w-10 h-10 object-cover"
-                          key={userProfile.profile_picture_url} // Force re-render when URL changes
+                          key={userProfile.profile_picture_url}
                         />
                       ) : (
                         <Image
