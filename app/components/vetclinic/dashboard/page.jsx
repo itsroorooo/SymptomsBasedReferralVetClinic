@@ -9,6 +9,8 @@ import Image from "next/image";
 import ManageSchedule from "../ManageSchedule/page";
 import ClinicProfile from "../profile/page";
 import ClinicEquipmentManager from "../equipment/page";
+import PatientList from "../Patients/page";
+import RealTimeAppointmentAlerts from "../appointments/page";
 
 
 const VetClinicDashboard = () => {
@@ -305,9 +307,9 @@ const VetClinicDashboard = () => {
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto bg-gray-50">
             {activeComponent === "VetDashboard" && <HomePage />}
-            {activeComponent === "pet" && <PetsPage />}
+            {activeComponent === "Patients" && <PatientList />}
             {activeComponent === "Equipment" && <div>Appointment Content</div>}
-            {activeComponent === "symptoms" && <SymptomsList />}
+            {activeComponent === "Appointments" && <RealTimeAppointmentAlerts />}
             {activeComponent === "Schedule" && clinicId && <ManageSchedule clinicId={clinicId} />}
             {activeComponent === "ClinicProfile" && <ClinicProfile clinicId={clinicId} />}
             {activeComponent === "Equipments" && <ClinicEquipmentManager clinicId={clinicId} />}
