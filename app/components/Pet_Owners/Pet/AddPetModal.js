@@ -83,6 +83,7 @@ export default function AddPetModal({
         breed: petToEdit.breed || "",
         weight: petToEdit.weight?.toString() || "",
         color: petToEdit.color || "",
+        gender: petToEdit.gender || "",
         photo: null,
       });
       setPreviewUrl(petToEdit.photo_url || "");
@@ -128,6 +129,7 @@ export default function AddPetModal({
         breed: "",
         weight: "",
         color: "",
+        gender: "",
         photo: null,
       });
       setBreedSearch("");
@@ -185,6 +187,7 @@ export default function AddPetModal({
         weight: parseFloat(formData.weight) || null,
         color: formData.color,
         photo_url: previewUrl,
+        gender: formData.gender,
         owner_id: user.id,
       };
 
