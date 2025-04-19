@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Sidebar from "../Sidebar/page";
 import { logout } from "@/app/logout/actions";
@@ -20,6 +20,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [roleVerified, setRoleVerified] = useState(false);
+  const dropdownRef = useRef(null);
 
   const initialProfileData = {
     photo: "/default-avatar.jpg",
@@ -107,16 +108,29 @@ const Dashboard = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   if (loading || !roleVerified) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gray-100">
+      <div className="flex justify-center items-center h-screen bg-gray-100 ">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="font-[Poppins] h-full min-h-screen bg-gray-100">
+    <div className="font-[Poppins] h-full min-h-screen bg-gray-100 dark:bg-gray-900  ref={dropdownRef}">
       {/* Sidebar Toggle Button */}
       <button
         onClick={toggleSidebar}
@@ -177,7 +191,7 @@ const Dashboard = () => {
 
               {/* User Dropdown */}
               {userProfile && (
-                <div className="relative flex items-center space-x-4">
+                <div className="relative flex items-center space-x-4 ref={dropdownRef}">
                   <div className="relative">
                     <button
                       onClick={(e) => {

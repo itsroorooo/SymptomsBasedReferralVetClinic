@@ -1,7 +1,7 @@
+// layout.js
 import { Poppins } from "next/font/google";
-import { Inter } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "./components/Pet_Owners/settings/ThemeContext";
+import { ThemeProvider } from "next-themes";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -17,9 +17,18 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${poppins.variable} .antialiased`}>
-        <ThemeProvider>{children}</ThemeProvider>
+    <html lang="en" suppressHydrationWarning className="h-full">
+      <body
+        className={`${poppins.variable} font-sans h-full bg-white dark:bg-gray-900`}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
