@@ -324,7 +324,6 @@ const VetMap = () => {
               <button
                 onClick={() => confirmLocationAccess(true)}
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                className="px-4 py-2 bg-pink-500 text-white rounded-md"
               >
                 Allow
               </button>
@@ -336,8 +335,6 @@ const VetMap = () => {
       {/* Main Google Map */}
       <GoogleMap
         mapContainerStyle={{ width: "100%", height: "100%" }}
-      {/* Map Container */}
-      <MapContainer
         center={BUTUAN_CENTER}
         zoom={DEFAULT_ZOOM}
         onLoad={onLoad}
@@ -350,7 +347,7 @@ const VetMap = () => {
           clickableIcons: false,
         }}
       >
-        {/* Clinic Markers */}
+        {/* Clinics Markers */}
         {clinics.map((clinic) => (
           <Marker
             key={clinic.id}
@@ -368,13 +365,19 @@ const VetMap = () => {
                     {clinic.clinic_name}
                   </h3>
                   <div className="flex items-start mb-3">
-                    <Icon icon="mdi:map-marker" className="text-gray-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <Icon
+                      icon="mdi:map-marker"
+                      className="text-gray-500 mr-2 mt-0.5 flex-shrink-0"
+                    />
                     <p className="text-sm text-gray-600">
                       {clinic.address}, {clinic.city}, {clinic.country}
                     </p>
                   </div>
                   <div className="flex items-center mb-4">
-                    <Icon icon="mdi:phone" className="text-gray-500 mr-2 flex-shrink-0" />
+                    <Icon
+                      icon="mdi:phone"
+                      className="text-gray-500 mr-2 flex-shrink-0"
+                    />
                     <a
                       href={`tel:${clinic.contact_number}`}
                       className="text-sm text-blue-600 hover:underline"
@@ -391,51 +394,6 @@ const VetMap = () => {
                 </div>
               </InfoWindow>
             )}
-            position={[clinic.latitude, clinic.longitude]}
-            icon={createRedIcon()}
-            ref={(ref) => {
-              if (ref) {
-                markerRefs.current[clinic.id] = ref;
-              }
-            }}
-            eventHandlers={{
-              click: () => {
-                markerRefs.current[clinic.id]?.openPopup();
-              }
-            }}
-            title={clinic.clinic_name}
-          >
-            <Popup className="font-[Poppins]">
-              <div className="min-w-[250px] p-2">
-                <h3 className="text-lg font-bold text-gray-800 mb-1">
-                  {clinic.clinic_name}
-                </h3>
-                
-                <div className="flex items-start mb-3">
-                  <Icon icon="mdi:map-marker" className="text-gray-500 mr-2 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-gray-600">
-                    {clinic.address}, {clinic.city}, {clinic.country}
-                  </p>
-                </div>
-                
-                <div className="flex items-center mb-4">
-                  <Icon icon="mdi:phone" className="text-gray-500 mr-2 flex-shrink-0" />
-                  <a 
-                    href={`tel:${clinic.contact_number}`}
-                    className="text-sm text-pink-600 hover:underline"
-                  >
-                    {clinic.contact_number}
-                  </a>
-                </div>
-                
-                <button
-                  onClick={() => handleBookAppointment(clinic)}
-                  className="w-full bg-pink-500 hover:bg-pink-600 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors"
-                >
-                  Book Appointment
-                </button>
-              </div>
-            </Popup>
           </Marker>
         ))}
 
@@ -450,7 +408,9 @@ const VetMap = () => {
           >
             {showLocationPopup && (
               <InfoWindow>
-                <div className="text-sm font-medium text-blue-600">You are here</div>
+                <div className="text-sm font-medium text-blue-600">
+                  You are here
+                </div>
               </InfoWindow>
             )}
           </Marker>
