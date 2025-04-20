@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, CheckCircle, Circle } from "lucide-react";
+import { Loader2, CheckCircle, Circle, TestTube2, Hospital } from "lucide-react";
 
 export default function SymptomPage() {
   const [symptoms, setSymptoms] = useState([]);
@@ -11,6 +11,11 @@ export default function SymptomPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
+  const [diagnosisResult, setDiagnosisResult] = useState(null);
+  const [recommendedClinics, setRecommendedClinics] = useState([]);
+  const [showResults, setShowResults] = useState(false);
+
+  console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY);
 
   useEffect(() => {
     const fetchSymptoms = async () => {
@@ -37,50 +42,159 @@ export default function SymptomPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-
+  
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated");
-
-      const { data: consultation, error: consultError } = await supabase
-        .from("pet_consultations")
-        .insert({
-          owner_id: user.id,
-          pet_type: petType,
-          additional_info: additionalInfo,
-          status: "pending"
-        })
-        .select()
-        .single();
-
-      if (consultError) throw consultError;
-
-      const symptomInserts = selectedSymptoms.map(symptomId => ({
-        consultation_id: consultation.id,
-        symptom_id: symptomId
-      }));
-
-      await supabase.from("consultation_symptoms").insert(symptomInserts);
-
-      const { error: aiError } = await supabase
-        .rpc('trigger_ai_diagnosis', { consultation_id: consultation.id });
-
-      if (aiError) throw aiError;
-
-      alert("Symptoms submitted! AI diagnosis will be ready shortly.");
+      const symptomNames = symptoms
+        .filter(symptom => selectedSymptoms.includes(symptom.id))
+        .map(symptom => symptom.name);
+  
+      const response = await fetch('/api/diagnosis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          petType,
+          symptoms: symptomNames,
+          additionalInfo
+        }),
+      });
+  
+      // First check if response exists
+      if (!response) {
+        throw new Error('No response from server');
+      }
+  
+      // Then check if response is OK
+      const text = await response.text();
       
+      // If empty response
+      if (!text) {
+        throw new Error('Empty response from server');
+      }
+  
+      // Now parse JSON
+      const data = JSON.parse(text);
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Diagnosis failed');
+      }
+  
+      // Success case
+      setDiagnosisResult(data.data);
+      setShowResults(true);
+  
     } catch (error) {
-      console.error("Submission error:", error);
-      alert("Error submitting symptoms");
+      console.error('Submission error:', error);
+      alert(error.message || 'Failed to get diagnosis');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Rest of your component remains the same...
+  // [Keep all your existing return statements and other code below]
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (showResults && diagnosisResult) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">
+              Diagnosis <span className="text-blue-600">Results</span>
+            </h1>
+            <p className="text-lg text-gray-600">
+              AI analysis for your {petType}
+            </p>
+          </div>
+
+          <div className="space-y-8">
+            {/* Diagnosis Card */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">Diagnosis</h2>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700">Possible Condition</h3>
+                  <p className="text-gray-800 text-xl">{diagnosisResult.possible_diagnosis}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700">Confidence Level</h3>
+                  <p className="text-gray-800">
+                    {Math.round(diagnosisResult.confidence_level * 100)}%
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700">Explanation</h3>
+                  <p className="text-gray-800">{diagnosisResult.explanation}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Recommended Equipment Card */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                <TestTube2 className="mr-2" /> Recommended Tests & Equipment
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {diagnosisResult.recommended_equipment.map((equipment, index) => (
+                  <div key={index} className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                    <p className="font-medium text-blue-800">{equipment}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Recommended Clinics Card */}
+            {recommendedClinics.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                  <Clinic className="mr-2" /> Nearby Clinics with Available Equipment
+                </h2>
+                <div className="space-y-6">
+                  {recommendedClinics.map((clinic, index) => (
+                    <div key={index} className="border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-800">{clinic.clinic.clinic_name}</h3>
+                          <p className="text-gray-600">{clinic.clinic.address}, {clinic.clinic.city}</p>
+                          <p className="text-gray-600">{clinic.clinic.contact_number}</p>
+                        </div>
+                        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                          Book Appointment
+                        </button>
+                      </div>
+                      <div className="mt-4">
+                        <h4 className="font-semibold text-gray-700">Available Equipment:</h4>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {clinic.equipment && (
+                            <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
+                              {clinic.equipment.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="text-center">
+              <button 
+                onClick={() => setShowResults(false)}
+                className="text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Back to symptom selection
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
