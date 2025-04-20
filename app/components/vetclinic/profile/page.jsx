@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import { LoadScript } from "@react-google-maps/api";
 
+
 const ClinicProfile = ({ clinicId }) => {
   const [clinic, setClinic] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -426,7 +427,7 @@ const ClinicProfile = ({ clinicId }) => {
                     <div className="ml-3">
                       <p className="text-sm font-medium text-gray-500">Address</p>
                       <p className="text-sm text-gray-700">
-                        {clinic.address}, {clinic.city}, {clinic.province} {clinic.zip_code}, {clinic.country}
+                        {clinic.address},{clinic.zip_code}
                       </p>
                     </div>
                   </div>
