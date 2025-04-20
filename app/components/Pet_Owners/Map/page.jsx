@@ -1,70 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import dynamic from "next/dynamic";
+import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Icon } from "@iconify/react";
-import "leaflet/dist/leaflet.css";
-
-// Dynamically import Leaflet and its components
-const MapContainer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.MapContainer),
-  { ssr: false }
-);
-const TileLayer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.TileLayer),
-  { ssr: false }
-);
-const Marker = dynamic(
-  () => import("react-leaflet").then((mod) => mod.Marker),
-  { ssr: false }
-);
-const Popup = dynamic(
-  () => import("react-leaflet").then((mod) => mod.Popup),
-  { ssr: false }
-);
-const CircleMarker = dynamic(
-  () => import("react-leaflet").then((mod) => mod.CircleMarker),
-  { ssr: false }
-);
-
-// Dynamically import Leaflet for custom icons
-const L = typeof window !== "undefined" ? require("leaflet") : null;
-
-// Create a custom red icon
-const createRedIcon = () => {
-  return new L.Icon({
-    iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-  });
-};
-
-const geocodeAddress = async (clinic) => {
-  try {
-    const fullAddress = `${clinic.address}, ${clinic.city}, ${clinic.zip_code}, ${clinic.country}`;
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}`
-    );
-    const data = await response.json();
-    
-    if (data.length > 0) {
-      return {
-        ...clinic,
-        latitude: parseFloat(data[0].lat),
-        longitude: parseFloat(data[0].lon)
-      };
-    }
-    return clinic;
-  } catch (error) {
-    console.error("Geocoding error:", error);
-    return clinic;
-  }
-};
 
 const VetMap = () => {
   const [clinics, setClinics] = useState([]);
@@ -73,6 +13,8 @@ const VetMap = () => {
   const [showLocationPopup, setShowLocationPopup] = useState(false);
   const [locationError, setLocationError] = useState(null);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [activeInfoWindow, setActiveInfoWindow] = useState(null);
+  const [mapLoadError, setMapLoadError] = useState(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedClinic, setSelectedClinic] = useState(null);
   const [pets, setPets] = useState([]);
@@ -89,11 +31,27 @@ const VetMap = () => {
   const router = useRouter();
   const supabase = createClientComponentClient();
   const mapRef = useRef(null);
-  const markerRefs = useRef({});
 
-  const BUTUAN_CENTER = [8.9475, 125.5406];
+  // Default center coordinates (Butuan City)
+  const BUTUAN_CENTER = { lat: 8.9475, lng: 125.5406 };
   const DEFAULT_ZOOM = 13;
 
+  // Load Google Maps API
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+    libraries: ['places'],
+  });
+
+  // Handle map load errors
+  useEffect(() => {
+    if (loadError) {
+      console.error('Google Maps API Error:', loadError);
+      setMapLoadError(loadError.message);
+    }
+  }, [loadError]);
+
+  // Fetch clinics from Supabase
   useEffect(() => {
     const fetchClinics = async () => {
       try {
@@ -117,33 +75,7 @@ const VetMap = () => {
 
         if (error) throw error;
 
-        const processedClinics = await Promise.all(
-          clinicsData.map(async (clinic) => {
-            if (clinic.latitude && clinic.longitude) return clinic;
-            
-            const geocodedClinic = await geocodeAddress(clinic);
-            
-            if (geocodedClinic.latitude && geocodedClinic.longitude) {
-              const { error: updateError } = await supabase
-                .from("veterinary_clinics")
-                .update({
-                  latitude: geocodedClinic.latitude,
-                  longitude: geocodedClinic.longitude
-                })
-                .eq("id", geocodedClinic.id);
-              
-              if (updateError) console.error("Error updating clinic coordinates:", updateError);
-            }
-            
-            return geocodedClinic;
-          })
-        );
-
-        const clinicsWithCoords = processedClinics.filter(
-          (clinic) => clinic.latitude && clinic.longitude
-        );
-
-        setClinics(clinicsWithCoords);
+        setClinics(clinicsData.filter(clinic => clinic.latitude && clinic.longitude));
       } catch (error) {
         console.error("Error fetching clinics:", error);
       } finally {
@@ -222,9 +154,12 @@ const VetMap = () => {
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const userPos = [pos.coords.latitude, pos.coords.longitude];
+        const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setUserLocation(userPos);
-        mapRef.current?.flyTo(userPos, 15);
+        if (mapRef.current) {
+          mapRef.current.panTo(userPos);
+          mapRef.current.setZoom(15);
+        }
         setTimeout(() => setShowLocationPopup(false), 5000);
       },
       (err) => {
@@ -317,6 +252,15 @@ const VetMap = () => {
     return endTime.toTimeString().substring(0, 5);
   };
 
+  const onLoad = (map) => {
+    mapRef.current = map;
+  };
+
+  const onUnmount = () => {
+    mapRef.current = null;
+  };
+
+  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -325,8 +269,45 @@ const VetMap = () => {
     );
   }
 
+  // Map load error state
+  if (mapLoadError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen p-4 text-center">
+        <Icon icon="mdi:alert-circle-outline" className="text-red-500 text-5xl mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Map Loading Error</h2>
+        <p className="mb-4">We couldn't load Google Maps. Please check:</p>
+        <ul className="text-left list-disc pl-5 mb-4 max-w-md mx-auto">
+          <li>Your internet connection is working</li>
+          <li>The API key is valid and enabled in Google Cloud Console</li>
+          <li>Required APIs are enabled (Maps JavaScript API, Places API)</li>
+          <li>Billing is enabled for your Google Cloud project</li>
+        </ul>
+        <div className="bg-yellow-100 p-4 rounded-md mb-4 text-sm">
+          <p>Debug info: {mapLoadError}</p>
+        </div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+        >
+          Reload Page
+        </button>
+      </div>
+    );
+  }
+
+  // Map loading state
+  if (!isLoaded) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+        <p>Loading Google Maps...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen w-full relative font-[Poppins]">
+      {/* Location Permission Modal */}
       {/* Location Permission Modal */}
       {showPermissionModal && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
@@ -336,12 +317,13 @@ const VetMap = () => {
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => confirmLocationAccess(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md"
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
               >
                 Deny
               </button>
               <button
                 onClick={() => confirmLocationAccess(true)}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
                 className="px-4 py-2 bg-pink-500 text-white rounded-md"
               >
                 Allow
@@ -351,23 +333,64 @@ const VetMap = () => {
         </div>
       )}
 
+      {/* Main Google Map */}
+      <GoogleMap
+        mapContainerStyle={{ width: "100%", height: "100%" }}
       {/* Map Container */}
       <MapContainer
         center={BUTUAN_CENTER}
         zoom={DEFAULT_ZOOM}
-        className="h-full w-full"
-        ref={mapRef}
-        closePopupOnClick={false}
+        onLoad={onLoad}
+        onUnmount={onUnmount}
+        options={{
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: false,
+          zoomControl: true,
+          clickableIcons: false,
+        }}
       >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-
         {/* Clinic Markers */}
         {clinics.map((clinic) => (
           <Marker
             key={clinic.id}
+            position={{ lat: clinic.latitude, lng: clinic.longitude }}
+            onClick={() => setActiveInfoWindow(clinic.id)}
+            icon={{
+              url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+              scaledSize: new window.google.maps.Size(32, 32),
+            }}
+          >
+            {activeInfoWindow === clinic.id && (
+              <InfoWindow onCloseClick={() => setActiveInfoWindow(null)}>
+                <div className="min-w-[250px] p-2">
+                  <h3 className="text-lg font-bold text-gray-800 mb-1">
+                    {clinic.clinic_name}
+                  </h3>
+                  <div className="flex items-start mb-3">
+                    <Icon icon="mdi:map-marker" className="text-gray-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-gray-600">
+                      {clinic.address}, {clinic.city}, {clinic.country}
+                    </p>
+                  </div>
+                  <div className="flex items-center mb-4">
+                    <Icon icon="mdi:phone" className="text-gray-500 mr-2 flex-shrink-0" />
+                    <a
+                      href={`tel:${clinic.contact_number}`}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      {clinic.contact_number}
+                    </a>
+                  </div>
+                  <button
+                    onClick={() => handleBookAppointment(clinic.id)}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors"
+                  >
+                    Book Appointment
+                  </button>
+                </div>
+              </InfoWindow>
+            )}
             position={[clinic.latitude, clinic.longitude]}
             icon={createRedIcon()}
             ref={(ref) => {
@@ -418,40 +441,23 @@ const VetMap = () => {
 
         {/* User Location Marker */}
         {userLocation && (
-          <>
-            <CircleMarker
-              center={userLocation}
-              radius={10}
-              fillOpacity={0.7}
-              stroke={false}
-              fillColor="#3388ff"
-            />
-            <Marker
-              position={userLocation}
-              icon={L.divIcon({
-                html: `
-                  <div class="user-location-marker">
-                    <div class="w-4 h-4 bg-blue-500 rounded-full"></div>
-                    <div class="absolute inset-0 border-2 border-blue-300 rounded-full animate-ping"></div>
-                  </div>
-                `,
-                className: "bg-transparent border-none",
-                iconSize: [24, 24],
-                iconAnchor: [12, 12],
-              })}
-            >
-              {showLocationPopup && (
-                <Popup className="font-[Poppins]">
-                  <div className="text-sm font-medium text-blue-600">
-                    You are here
-                  </div>
-                </Popup>
-              )}
-            </Marker>
-          </>
+          <Marker
+            position={userLocation}
+            icon={{
+              url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+              scaledSize: new window.google.maps.Size(32, 32),
+            }}
+          >
+            {showLocationPopup && (
+              <InfoWindow>
+                <div className="text-sm font-medium text-blue-600">You are here</div>
+              </InfoWindow>
+            )}
+          </Marker>
         )}
-      </MapContainer>
+      </GoogleMap>
 
+      {/* Locate Me Button */}
       {/* Appointment Booking Modal */}
       {showAppointmentModal && selectedClinic && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000] p-4">
@@ -663,6 +669,7 @@ const VetMap = () => {
         </button>
       </div>
 
+      {/* Location Error Message */}
       {/* Location Error Message */}
       {locationError && (
         <div className="absolute bottom-20 right-4 z-[1000] bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded font-[Poppins]">
