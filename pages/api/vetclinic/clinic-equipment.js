@@ -42,7 +42,44 @@ export default async function handler(req, res) {
       res.status(500).json({ error: error.message });
     }
   } else if (req.method === "POST") {
-    // ... (keep the existing POST handler for custom equipment)
+    const { clinic_id, equipment_name, equipment_description, is_available } = req.body;
+
+    if (!clinic_id || !equipment_name) {
+      return res.status(400).json({ 
+        error: "Clinic ID and equipment name are required" 
+      });
+    }
+
+    try {
+      // Insert custom equipment (no equipment_id since it's custom)
+      const { data, error } = await supabase
+        .from("clinic_equipment")
+        .insert([{
+          clinic_id,
+          equipment_name,
+          equipment_description: equipment_description || null,
+          is_available: is_available !== false, // default to true
+
+        }])
+        .select(); // Return the inserted record
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error("Failed to create equipment - no data returned");
+      }
+
+      // Return the newly created equipment with is_standard flag
+      res.status(201).json({ 
+        ...data[0],
+        is_standard: false 
+      });
+    } catch (error) {
+      console.error("Error creating custom equipment:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to create custom equipment" 
+      });
+    }
   } else {
     res.setHeader("Allow", ["GET", "POST"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);

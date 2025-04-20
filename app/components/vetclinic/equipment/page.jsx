@@ -118,29 +118,33 @@ const ClinicEquipmentManager = ({ clinicId }) => {
     }
   
     try {
-      setApiError("");
       const response = await fetch("/api/vetclinic/clinic-equipment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clinic_id: clinicId,
           equipment_name: customEquipment.trim(),
-          equipment_description: customDescription.trim() || null,
-          is_available: true,
+          equipment_description: customDescription.trim(),
+          is_available: true
         }),
       });
   
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to add custom equipment");
+        throw new Error(errorData.error || "Failed to add equipment");
       }
   
       const newEquipment = await response.json();
-      setClinicEquipment((prev) => [...prev, newEquipment]);
+      
+      // Update state - important to include is_standard
+      setClinicEquipment(prev => [...prev, newEquipment]);
+      
+      // Reset form
       setCustomEquipment("");
       setCustomDescription("");
       setIsAddingCustom(false);
-      setSuccessMessage("Custom equipment added successfully");
+      
+      setSuccessMessage("Equipment added successfully");
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
       setApiError(err.message);
