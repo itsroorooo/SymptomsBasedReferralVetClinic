@@ -7,6 +7,10 @@ import { useRouter } from "next/navigation";
 import HomePage from "../home/page";
 import Image from "next/image";
 import ManageSchedule from "../ManageSchedule/page";
+import ClinicProfile from "../profile/page";
+import ClinicEquipmentManager from "../equipment/page";
+import PatientList from "../Patients/page";
+import RealTimeAppointmentAlerts from "../appointments/page";
 
 
 const VetClinicDashboard = () => {
@@ -70,22 +74,18 @@ const VetClinicDashboard = () => {
     const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
-  
+    
         if (error || !session) {
           throw new Error(error?.message || "No active session");
         }
-  
-        await fetchUserData(session.user.id);
+    
+        await fetchUserData(session.user.id); // Fetch user data if session exists
       } catch (error) {
         console.error("Session check error:", error);
-        if (mounted) {
-          setAuthError(error.message);
-          router.push("/login");
-        }
+        setAuthError(error.message);
+        router.push("/login"); // Redirect to login if no session
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
   
@@ -109,8 +109,15 @@ const VetClinicDashboard = () => {
   
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw new Error("Failed to log out");
+      }
+      router.push("/login"); // Redirect to login after logout
+    } catch (err) {
+      console.error("Logout error:", err.message);
+    }
   };
 
   if (loading) {
@@ -198,6 +205,8 @@ const VetClinicDashboard = () => {
                   {activeComponent === "Equipments" && "Equipments"}
                   {activeComponent === "Appointments" && "Appointments"}
                   {activeComponent === "Schedule" && "Manage Schedule"}
+                  {activeComponent === "ClinicProfile" && "Clinic Profile"}
+
                 </h1>
               </div>
 
@@ -298,10 +307,12 @@ const VetClinicDashboard = () => {
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto bg-gray-50">
             {activeComponent === "VetDashboard" && <HomePage />}
-            {activeComponent === "pet" && <PetsPage />}
+            {activeComponent === "Patients" && <PatientList />}
             {activeComponent === "Equipment" && <div>Appointment Content</div>}
-            {activeComponent === "symptoms" && <SymptomsList />}
+            {activeComponent === "Appointments" && <RealTimeAppointmentAlerts />}
             {activeComponent === "Schedule" && clinicId && <ManageSchedule clinicId={clinicId} />}
+            {activeComponent === "ClinicProfile" && <ClinicProfile clinicId={clinicId} />}
+            {activeComponent === "Equipments" && <ClinicEquipmentManager clinicId={clinicId} />}
           </main>
         </div>
       </div>

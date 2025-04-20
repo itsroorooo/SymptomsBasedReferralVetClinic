@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Sidebar from "../Sidebar/page";
 import { logout } from "@/app/logout/actions";
@@ -10,7 +10,9 @@ import SymptomsList from "../SymptomsList/page";
 import { createClient } from "@/utils/supabase/client";
 import VetMap from "../Map/page";
 import { useRouter } from "next/navigation";
-import ProfilePage from "../Profile/page";
+import ProfilePage from "../profile/page";
+import SettingsPage from "../settings/page";
+import AppointmentPage from "../Appointments/page";
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -19,12 +21,51 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [roleVerified, setRoleVerified] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const initialProfileData = {
+    photo: "/default-avatar.jpg",
+    name: "",
+    email: "",
+  };
+
+  // Should be initialized before use
+  const [profile, setProfile] = useState(initialProfileData);
   const supabase = createClient();
   const router = useRouter();
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
+
+  useEffect(() => {
+    if (!userProfile?.id) return;
+
+    const channel = supabase
+      .channel("profile_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pet_owner_profiles",
+          filter: `id=eq.${userProfile.id}`,
+        },
+        (payload) => {
+          if (payload.new.profile_picture_url) {
+            setUserProfile((prev) => ({
+              ...prev,
+              profile_picture_url: payload.new.profile_picture_url,
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userProfile?.id, supabase]);
 
   useEffect(() => {
     const verifyAndFetch = async () => {
@@ -97,16 +138,29 @@ const Dashboard = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   if (loading || !roleVerified) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gray-100">
+      <div className="flex justify-center items-center h-screen bg-gray-100 ">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="font-[Poppins] h-full min-h-screen bg-gray-100">
+    <div className="font-[Poppins] h-full min-h-screen bg-gray-100 dark:bg-gray-900  ref={dropdownRef}">
       {/* Sidebar Toggle Button */}
       <button
         onClick={toggleSidebar}
@@ -133,8 +187,8 @@ const Dashboard = () => {
         {/* Sidebar - fixed width when open */}
         <div
           className={`${isSidebarOpen ? "w-64" : "w-0"} 
-          transition-all duration-300 ease-in-out 
-          fixed md:static z-40 h-full`}
+        transition-all duration-300 ease-in-out 
+        fixed md:static z-40 h-full`}
         >
           <Sidebar
             isSidebarOpen={isSidebarOpen}
@@ -146,9 +200,9 @@ const Dashboard = () => {
 
         {/* Content Area - adjusts margin based on sidebar */}
         <div
-          className={`flex-1 flex flex-col h-full overflow-hidden 
-          ${isSidebarOpen ? "md:ml-0" : "md:ml-0"}
-          transition-all duration-300 ease-in-out`}
+          className={`flex-1 flex flex-col h-full  
+        ${isSidebarOpen ? "md:ml-0" : "md:ml-0"}
+        transition-all duration-300 ease-in-out`}
         >
           {/* Header */}
           <header className="shadow-md py-2 px-4 md:px-10 bg-white">
@@ -161,29 +215,49 @@ const Dashboard = () => {
                   {activeComponent === "map" && "Available Clinics"}
                   {activeComponent === "symptoms" && "Report Pet Symptoms"}
                   {activeComponent === "profile" && "My Profile"}
-                  {activeComponent === "settings" && <SettingsPage />}
+                  {activeComponent === "settings" && "My Settings"}
                 </h1>
               </div>
 
               {/* User Dropdown */}
               {userProfile && (
-                <div className="relative flex items-center space-x-4">
+                <div className="relative flex items-center space-x-4 ref={dropdownRef}">
                   <div className="relative">
                     <button
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsDropdownOpen(!isDropdownOpen);
+                      }}
                       className="focus:outline-none"
                     >
-                      <Image
-                        src={userProfile.profile_picture_url}
-                        alt="User profile"
-                        width={48}
-                        height={48}
-                        className="w-12 h-12 rounded-full cursor-pointer"
-                      />
+                      {userProfile.profile_picture_url ? (
+                        <img
+                          src={`${
+                            userProfile.profile_picture_url
+                          }?${Date.now()}`}
+                          alt="Profile picture"
+                          width={40}
+                          height={40}
+                          className="rounded-full w-10 h-10 object-cover"
+                          key={userProfile.profile_picture_url}
+                        />
+                      ) : (
+                        <Image
+                          src="/default-avatar.jpg"
+                          alt="Profile picture"
+                          width={40}
+                          height={40}
+                          className="rounded-full w-10 h-10 object-cover"
+                          priority
+                        />
+                      )}
                     </button>
 
                     {isDropdownOpen && (
-                      <div className="absolute right-0 mt-2 bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-44">
+                      <div
+                        className="absolute right-0 mt-2 bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-44 z-50"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="px-4 py-3 text-sm text-gray-900">
                           <div>{`${userProfile.first_name} ${userProfile.last_name}`}</div>
                           <div className="font-medium truncate">
@@ -191,28 +265,30 @@ const Dashboard = () => {
                           </div>
                         </div>
 
-                        <ul
-                          className="py-2 text-sm text-gray-700 dark:text-gray-200"
-                          aria-labelledby="dropdownToggle"
-                        >
+                        <ul className="py-2 text-sm text-gray-700">
                           <li>
-                            <Link
-                              href="/profile"
-                              className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
+                            <button
+                              onClick={() => {
+                                setActiveComponent("profile");
+                                setIsDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                             >
                               Profile
-                            </Link>
+                            </button>
                           </li>
                           <li>
-                            <Link
-                              href="/components/Pet_Owners/Settings"
-                              className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white"
+                            <button
+                              onClick={() => {
+                                setActiveComponent("settings");
+                                setIsDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                             >
                               Settings
-                            </Link>
+                            </button>
                           </li>
                         </ul>
-
 
                         <div className="py-1">
                           <form action={logout}>
@@ -236,9 +312,7 @@ const Dashboard = () => {
           <main className="flex-1 overflow-auto bg-gray-100">
             {activeComponent === "Dashboard" && <div>Home Content</div>}
             {activeComponent === "pet" && <PetsPage />}
-            {activeComponent === "appointment" && (
-              <div>Appointment Content</div>
-            )}
+            {activeComponent === "appointment" && <AppointmentPage />}
             {activeComponent === "map" && <VetMap />}
             {activeComponent === "symptoms" && <SymptomsList />}
             {activeComponent === "profile" && (
@@ -251,6 +325,7 @@ const Dashboard = () => {
                 }}
               />
             )}
+            {activeComponent === "settings" && <SettingsPage />}
           </main>
         </div>
       </div>
