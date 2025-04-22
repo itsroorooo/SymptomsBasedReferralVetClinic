@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Icon } from "@iconify/react";
+
 
 const VetMap = () => {
   const [clinics, setClinics] = useState([]);
@@ -27,6 +28,8 @@ const VetMap = () => {
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [availableTimes, setAvailableTimes] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const searchParams = useSearchParams();
+  const diagnosis = searchParams.get('diagnosis');
 
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -42,6 +45,9 @@ const VetMap = () => {
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: ['places'],
   });
+
+  
+  
 
   // Handle map load errors
   useEffect(() => {
@@ -85,6 +91,54 @@ const VetMap = () => {
 
     fetchClinics();
   }, [supabase]);
+
+  useEffect(() => {
+    const fetchAllClinics = async () => {
+      const { data: clinicsData } = await supabase
+        .from('veterinary_clinics')
+        .select('*')
+        .eq('is_verified', true);
+      setClinics(clinicsData || []); // Corrected variable name
+    };
+  
+    const filterClinicsByEquipment = async () => {
+      if (diagnosis) {
+        try {
+          // Fetch clinics based on diagnosis
+          const { data: recommendedEquipment } = await supabase
+            .from('equipment')
+            .select('id, name')
+            .ilike('name', `%${diagnosis}%`);
+  
+          if (recommendedEquipment?.length > 0) {
+            const equipmentIds = recommendedEquipment.map(e => e.id);
+            const { data: equippedClinics } = await supabase
+              .from('clinic_equipment')
+              .select('clinic_id')
+              .in('equipment_id', equipmentIds);
+  
+            if (equippedClinics?.length > 0) {
+              const clinicIds = equippedClinics.map(c => c.clinic_id);
+              const { data: filteredClinics } = await supabase
+                .from('veterinary_clinics')
+                .select('*')
+                .in('id', clinicIds)
+                .eq('is_verified', true);
+  
+              setClinics(filteredClinics || []);
+            }
+          }
+        } catch (error) {
+          console.error('Error filtering clinics:', error);
+          fetchAllClinics(); // Fallback to fetching all clinics
+        }
+      } else {
+        fetchAllClinics(); // Fetch all clinics if no diagnosis
+      }
+    };
+  
+    filterClinicsByEquipment();
+  }, [diagnosis, supabase]);
 
   // Fetch user's pets when modal opens
   useEffect(() => {
@@ -306,7 +360,7 @@ const VetMap = () => {
   }
 
   return (
-    <div className="h-screen w-full relative font-[Poppins]">
+    <div className="relative font-[Poppins] h-full">
       {/* Location Permission Modal */}
       {/* Location Permission Modal */}
       {showPermissionModal && (
@@ -324,7 +378,6 @@ const VetMap = () => {
               <button
                 onClick={() => confirmLocationAccess(true)}
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                className="px-4 py-2 bg-pink-500 text-white rounded-md"
               >
                 Allow
               </button>
@@ -333,11 +386,8 @@ const VetMap = () => {
         </div>
       )}
 
-      {/* Main Google Map */}
       <GoogleMap
         mapContainerStyle={{ width: "100%", height: "100%" }}
-      {/* Map Container */}
-      <MapContainer
         center={BUTUAN_CENTER}
         zoom={DEFAULT_ZOOM}
         onLoad={onLoad}
@@ -383,7 +433,7 @@ const VetMap = () => {
                     </a>
                   </div>
                   <button
-                    onClick={() => handleBookAppointment(clinic.id)}
+                    onClick={() => handleBookAppointment(clinic)}
                     className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors"
                   >
                     Book Appointment
@@ -391,51 +441,6 @@ const VetMap = () => {
                 </div>
               </InfoWindow>
             )}
-            position={[clinic.latitude, clinic.longitude]}
-            icon={createRedIcon()}
-            ref={(ref) => {
-              if (ref) {
-                markerRefs.current[clinic.id] = ref;
-              }
-            }}
-            eventHandlers={{
-              click: () => {
-                markerRefs.current[clinic.id]?.openPopup();
-              }
-            }}
-            title={clinic.clinic_name}
-          >
-            <Popup className="font-[Poppins]">
-              <div className="min-w-[250px] p-2">
-                <h3 className="text-lg font-bold text-gray-800 mb-1">
-                  {clinic.clinic_name}
-                </h3>
-                
-                <div className="flex items-start mb-3">
-                  <Icon icon="mdi:map-marker" className="text-gray-500 mr-2 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-gray-600">
-                    {clinic.address}, {clinic.city}, {clinic.country}
-                  </p>
-                </div>
-                
-                <div className="flex items-center mb-4">
-                  <Icon icon="mdi:phone" className="text-gray-500 mr-2 flex-shrink-0" />
-                  <a 
-                    href={`tel:${clinic.contact_number}`}
-                    className="text-sm text-pink-600 hover:underline"
-                  >
-                    {clinic.contact_number}
-                  </a>
-                </div>
-                
-                <button
-                  onClick={() => handleBookAppointment(clinic)}
-                  className="w-full bg-pink-500 hover:bg-pink-600 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors"
-                >
-                  Book Appointment
-                </button>
-              </div>
-            </Popup>
           </Marker>
         ))}
 
