@@ -403,7 +403,7 @@ const VetMap = () => {
           clickableIcons: false,
         }}
       >
-        {/* Clinic Markers */}
+        {/* Clinics Markers */}
         {clinics.map((clinic) => (
           <Marker
             key={clinic.id}
@@ -421,13 +421,19 @@ const VetMap = () => {
                     {clinic.clinic_name}
                   </h3>
                   <div className="flex items-start mb-3">
-                    <Icon icon="mdi:map-marker" className="text-gray-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <Icon
+                      icon="mdi:map-marker"
+                      className="text-gray-500 mr-2 mt-0.5 flex-shrink-0"
+                    />
                     <p className="text-sm text-gray-600">
                       {clinic.address}, {clinic.city}, {clinic.country}
                     </p>
                   </div>
                   <div className="flex items-center mb-4">
-                    <Icon icon="mdi:phone" className="text-gray-500 mr-2 flex-shrink-0" />
+                    <Icon
+                      icon="mdi:phone"
+                      className="text-gray-500 mr-2 flex-shrink-0"
+                    />
                     <a
                       href={`tel:${clinic.contact_number}`}
                       className="text-sm text-blue-600 hover:underline"
@@ -458,7 +464,9 @@ const VetMap = () => {
           >
             {showLocationPopup && (
               <InfoWindow>
-                <div className="text-sm font-medium text-blue-600">You are here</div>
+                <div className="text-sm font-medium text-blue-600">
+                  You are here
+                </div>
               </InfoWindow>
             )}
           </Marker>

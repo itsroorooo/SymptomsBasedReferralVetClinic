@@ -5,7 +5,14 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true
 });
 
-export async function generatePetDiagnosis(petType, symptomsList, additionalInfo = '') {
+/**
+ * Generates a pet diagnosis based on symptoms
+ * @param {string} petType - Type of pet (dog, cat, etc.)
+ * @param {string[]} symptomsList - Array of symptom names
+ * @param {string} additionalInfo - Additional context about the pet's condition
+ * @returns {Promise<Object>} - AI diagnosis result
+ */
+export async function generatePetDiagnosis(petType, symptomsList, additionalInfo) {
   if (!process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
     throw new Error("OpenAI API key is not configured");
   }
@@ -13,18 +20,22 @@ export async function generatePetDiagnosis(petType, symptomsList, additionalInfo
   const symptomsText = symptomsList.join(', ');
   
   const prompt = `
-  As a veterinary AI assistant, analyze these symptoms and provide:
-  1. Possible diagnosis (as "possible_condition")
-  2. Confidence level (0-1 as "confidence_level")
-  3. Recommended standard veterinary equipment/tests (as array "recommended_equipment")
-  4. Brief explanation ("explanation")
-
-  Respond in strict JSON format only.
+  You are a veterinary AI assistant. Analyze the following pet symptoms and provide:
+  1. A possible diagnosis (be conservative, list as "Possible Condition")
+  2. Confidence level (0-1)
+  3. Recommended diagnostic tests/equipment needed (from standard veterinary tools)
+  4. Brief explanation of your reasoning
 
   Details:
   Pet: ${petType}
   Symptoms: ${symptomsText}
-  Additional Info: ${additionalInfo || 'None'}
+  Additional Info: ${additionalInfo || 'None provided'}
+
+  Respond in JSON format with these keys:
+  - possible_diagnosis
+  - confidence_level
+  - recommended_equipment (array of equipment names)
+  - explanation
   `;
 
   try {
@@ -44,26 +55,9 @@ export async function generatePetDiagnosis(petType, symptomsList, additionalInfo
       temperature: 0.3
     });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error("No content in AI response");
-
-    const result = JSON.parse(content);
-    
-    // Validate and transform response
-    return {
-      possible_condition: result.possible_condition || result.possible_diagnosis || "Unknown condition",
-      confidence_level: typeof result.confidence_level === 'number' ? result.confidence_level : 0,
-      recommended_equipment: Array.isArray(result.recommended_equipment) 
-        ? result.recommended_equipment.filter(e => typeof e === 'string')
-        : [],
-      explanation: result.explanation || "No explanation provided"
-    };
-
+    return JSON.parse(response.choices[0].message.content);
   } catch (error) {
-    console.error('OpenAI API Error:', {
-      message: error.message,
-      stack: error.stack
-    });
-    throw new Error(`AI service error: ${error.message}`);
+    console.error("OpenAI error:", error);
+    throw error;
   }
 }

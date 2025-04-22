@@ -5,7 +5,6 @@ import { Loader2, CheckCircle, Circle, TestTube2, Hospital } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function SymptomPage() {
-  const router = useRouter();
   const [symptoms, setSymptoms] = useState([]);
   const [pets, setPets] = useState([]); // Added pets state
   const [selectedPetId, setSelectedPetId] = useState("");
@@ -17,36 +16,20 @@ export default function SymptomPage() {
   const [diagnosisResult, setDiagnosisResult] = useState(null);
   const [recommendedClinics, setRecommendedClinics] = useState([]);
   const [showResults, setShowResults] = useState(false);
+  const [user, setUser] = useState(null);
+  const [pets, setPets] = useState([]);
 
-  const supabase = createClient();
+  console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        // Get current user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError || !user) throw new Error("User not authenticated");
+    const fetchSymptoms = async () => {
+      const { data, error } = await supabase
+        .from("symptoms")
+        .select("*")
+        .order("name", { ascending: true });
 
-        // Fetch user's pets and symptoms
-        const [{ data: petsData, error: petsError }, 
-               { data: symptomsData, error: symptomsError }] = await Promise.all([
-          supabase.from("pets").select("*").eq("owner_id", user.id),
-          supabase.from("symptoms").select("*").order("name", { ascending: true })
-        ]);
-
-        if (petsError) throw petsError;
-        if (symptomsError) throw symptomsError;
-
-        setPets(petsData || []);
-        setSymptoms(symptomsData || []);
-
-      } catch (error) {
-        console.error("Fetch error:", error);
-        alert("Failed to load data: " + error.message);
-      } finally {
-        setIsLoading(false);
-      }
+      if (!error) setSymptoms(data || []);
+      setIsLoading(false);
     };
 
     fetchData();
@@ -74,145 +57,57 @@ export default function SymptomPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    let consultation;
   
     try {
-      // Validate inputs
-      if (!selectedPetId) throw new Error("Please select a pet");
-      if (selectedSymptoms.length === 0) throw new Error("Please select at least one symptom");
-  
-      const selectedPet = pets.find(pet => pet.id === selectedPetId);
-      if (!selectedPet) throw new Error("Selected pet not found");
-  
-      // Get symptom names
       const symptomNames = symptoms
         .filter(symptom => selectedSymptoms.includes(symptom.id))
         .map(symptom => symptom.name);
   
-      // Call diagnosis API
       const response = await fetch('/api/diagnosis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           petType: selectedPet.pet_type,
           symptoms: symptomNames,
-          additionalInfo
+          additionalInfo,
+          consultationId: consultation.id
         }),
       });
   
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Diagnosis request failed');
+      // First check if response exists
+      if (!response) {
+        throw new Error('No response from server');
       }
   
-      const { data: diagnosisData } = await response.json();
-      setDiagnosisResult(diagnosisData);
-  
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error("User not authenticated");
-  
-      // 1. Create consultation record
-      const { data: consultation, error: consultError } = await supabase
-        .from("pet_consultations")
-        .insert({
-          pet_id: selectedPetId,
-          owner_id: user.id,
-          additional_info: additionalInfo
-        })
-        .select()
-        .single();
-  
-      if (consultError) throw new Error(`Consultation error: ${consultError.message}`);
-  
-      // 2. Link symptoms to consultation
-      const { error: symptomsError } = await supabase
-        .from("consultation_symptoms")
-        .insert(
-          selectedSymptoms.map(symptomId => ({
-            consultation_id: consultation.id,
-            symptom_id: symptomId
-          }))
-        );
-  
-      if (symptomsError) throw new Error(`Symptoms error: ${symptomsError.message}`);
-
-
-      // Add this before the insert operation
-    console.log('Data being inserted:', {
-      consultation_id: consultation.id,
-      possible_condition: diagnosisData.possible_condition,
-      explanation: diagnosisData.explanation
-    });
-
-    if (!consultation.id) throw new Error("Missing consultation ID");
-    if (!diagnosisData.possible_condition) throw new Error("Missing possible condition");
-    if (!diagnosisData.explanation) throw new Error("Missing explanation");
-  
-      // 3. Save AI diagnosis
-      const { data: diagnosis, error: diagnosisError } = await supabase
-        .from("ai_diagnoses")
-        .insert({
-          consultation_id: consultation.id,
-          possible_condition: diagnosisData.possible_condition,
-          explanation: diagnosisData.explanation,
-        })
-        .select()
-        .single();
-  
-        if (diagnosisError) {
-          console.error('Diagnosis error details:', {
-            message: diagnosisError.message,
-            code: diagnosisError.code,
-            details: diagnosisError.details,
-            hint: diagnosisError.hint,
-            status: diagnosisError.status
-          });
-          throw new Error(`Failed to save diagnosis: ${diagnosisError.message}`);
-        }
-  
-      // 4. Save recommended equipment
-      if (diagnosisData.recommended_equipment?.length > 0) {
-        // Get or create equipment
-        const { data: existingEquipment } = await supabase
-          .from("equipment")
-          .select("id, name")
-          .in("name", diagnosisData.recommended_equipment);
-  
-        const existingNames = existingEquipment?.map(e => e.name) || [];
-        const newEquipment = diagnosisData.recommended_equipment
-          .filter(name => !existingNames.includes(name))
-          .map(name => ({ name }));
-  
-        if (newEquipment.length > 0) {
-          await supabase.from("equipment").insert(newEquipment);
-        }
-  
-        // Get all equipment IDs
-        const { data: allEquipment } = await supabase
-          .from("equipment")
-          .select("id")
-          .in("name", diagnosisData.recommended_equipment);
-  
-        // Link to diagnosis
-        if (allEquipment?.length > 0) {
-          await supabase.from("diagnosis_equipment").insert(
-            allEquipment.map(equip => ({
-              diagnosis_id: diagnosis.id,
-              equipment_id: equip.id
-            }))
-          );
-        }
+      // Then check if response is OK
+      const text = await response.text();
+      
+      // If empty response
+      if (!text) {
+        throw new Error('Empty response from server');
       }
   
+      // Now parse JSON
+      const data = JSON.parse(text);
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Diagnosis failed');
+      }
+  
+      // Success case
+      setDiagnosisResult(data.data);
       setShowResults(true);
   
+      // 7. Update consultation status
+      await supabase
+        .from('pet_consultations')
+        .update({ status: 'completed' })
+        .eq('id', consultation.id);
+  
     } catch (error) {
-      console.error('Detailed submission error:', {
-        message: error.message,
-        stack: error.stack,
-        timestamp: new Date().toISOString()
-      });
-      alert(error.message || 'Failed to complete diagnosis');
+      console.error('Submission error:', error);
+      alert(error.message || 'Failed to get diagnosis');
     } finally {
       setIsSubmitting(false);
     }
@@ -247,7 +142,13 @@ export default function SymptomPage() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-700">Possible Condition</h3>
-                  <p className="text-gray-800 text-xl">{diagnosisResult.possible_condition}</p>
+                  <p className="text-gray-800 text-xl">{diagnosisResult.possible_diagnosis}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700">Confidence Level</h3>
+                  <p className="text-gray-800">
+                    {Math.round(diagnosisResult.confidence_level * 100)}%
+                  </p>
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-700">Explanation</h3>
@@ -262,7 +163,7 @@ export default function SymptomPage() {
                 <TestTube2 className="mr-2" /> Recommended Tests & Equipment
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {diagnosisResult.recommended_equipment.map((equipment, index) => (
+                {diagnosisResult.recommended_equipment?.map((equipment, index) => (
                   <div key={index} className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <p className="font-medium text-blue-800">{equipment}</p>
                   </div>
@@ -274,16 +175,16 @@ export default function SymptomPage() {
             {recommendedClinics.length > 0 && (
               <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
-                  <Clinic className="mr-2" /> Nearby Clinics with Available Equipment
+                  <Hospital className="mr-2" /> Nearby Clinics with Available Equipment
                 </h2>
                 <div className="space-y-6">
                   {recommendedClinics.map((clinic, index) => (
                     <div key={index} className="border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="text-xl font-bold text-gray-800">{clinic.clinic.clinic_name}</h3>
-                          <p className="text-gray-600">{clinic.clinic.address}, {clinic.clinic.city}</p>
-                          <p className="text-gray-600">{clinic.clinic.contact_number}</p>
+                          <h3 className="text-xl font-bold text-gray-800">{clinic.clinic_name}</h3>
+                          <p className="text-gray-600">{clinic.address}, {clinic.city}</p>
+                          <p className="text-gray-600">{clinic.contact_number}</p>
                         </div>
                         <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
                           Book Appointment

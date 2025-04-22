@@ -12,7 +12,6 @@ import ClinicEquipmentManager from "../equipment/page";
 import PatientList from "../Patients/page";
 import RealTimeAppointmentAlerts from "../appointments/page";
 
-
 const VetClinicDashboard = () => {
   const [isVetSidebarOpen, setIsVetSidebar] = useState(false);
   const [activeComponent, setActiveComponent] = useState("VetDashboard");
@@ -21,9 +20,10 @@ const VetClinicDashboard = () => {
   const [clinicProfile, setClinicProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
+  const [clinicId, setClinicId] = useState(null);
+  
   const supabase = createClient();
   const router = useRouter();
-  const [clinicId, setClinicId] = useState(null);
 
   const toggleSidebar = () => {
     setIsVetSidebar(!isVetSidebarOpen);
@@ -31,7 +31,7 @@ const VetClinicDashboard = () => {
 
   useEffect(() => {
     let mounted = true;
-  
+
     const fetchUserData = async (userId) => {
       try {
         // Fetch user profile
@@ -40,27 +40,26 @@ const VetClinicDashboard = () => {
           .select("*")
           .eq("id", userId)
           .single();
-  
+
         if (profileError || !userData) {
           throw new Error(profileError?.message || "Profile not found");
         }
-  
+
         if (mounted) {
           setUserProfile(userData);
         }
-  
+
         // Fetch clinic profile if exists
         const { data: clinicData, error: clinicError } = await supabase
           .from("veterinary_clinics")
           .select("*")
           .eq("user_id", userId)
           .single();
-  
+
         if (mounted) {
           if (!clinicError && clinicData) {
             setClinicProfile(clinicData);
-            // Store the clinic ID in state
-            setClinicId(clinicData.id); // Add this line
+            setClinicId(clinicData.id);
           }
         }
       } catch (error) {
@@ -70,51 +69,57 @@ const VetClinicDashboard = () => {
         }
       }
     };
-  
+
     const checkSession = async () => {
       try {
+        setLoading(true);
         const { data: { session }, error } = await supabase.auth.getSession();
-    
-        if (error || !session) {
-          throw new Error(error?.message || "No active session");
+
+        if (error) {
+          throw error;
         }
-    
-        await fetchUserData(session.user.id); // Fetch user data if session exists
+
+        if (!session) {
+          throw new Error("No active session");
+        }
+
+        await fetchUserData(session.user.id);
       } catch (error) {
         console.error("Session check error:", error);
-        setAuthError(error.message);
-        router.push("/login"); // Redirect to login if no session
+        if (mounted) {
+          setAuthError(error.message);
+          router.push("/login");
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
-  
-    // Initial session check
+
     checkSession();
-  
+
     const handleResize = () => {
       if (mounted) {
         setIsVetSidebar(window.innerWidth >= 768);
       }
     };
-  
-    window.addEventListener("resize", handleResize);
+
+    // Set initial sidebar state based on window width
     handleResize();
-  
+    window.addEventListener("resize", handleResize);
+
     return () => {
       mounted = false;
       window.removeEventListener("resize", handleResize);
     };
-  }, [supabase.auth, router]);
-  
+  }, [supabase, router]);
 
   const logout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw new Error("Failed to log out");
-      }
-      router.push("/login"); // Redirect to login after logout
+      if (error) throw error;
+      router.push("/login");
     } catch (err) {
       console.error("Logout error:", err.message);
     }
@@ -122,9 +127,9 @@ const VetClinicDashboard = () => {
 
   if (loading) {
     return (
-    <div className="flex justify-center items-center h-screen bg-gray-100">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-     </div>
+      <div className="flex justify-center items-center h-screen bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
     );
   }
 
@@ -134,6 +139,23 @@ const VetClinicDashboard = () => {
         <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-md">
           <h2 className="text-xl font-bold text-red-500 mb-4">Session Expired</h2>
           <p className="mb-4">Your session has expired. Please log in again.</p>
+          <button
+            onClick={() => router.push("/login")}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!userProfile) {
+    return (
+      <div className="font-[Poppins] h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-md">
+          <h2 className="text-xl font-bold text-red-500 mb-4">User Not Found</h2>
+          <p className="mb-4">Unable to load user profile.</p>
           <button
             onClick={() => router.push("/login")}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
@@ -206,101 +228,97 @@ const VetClinicDashboard = () => {
                   {activeComponent === "Appointments" && "Appointments"}
                   {activeComponent === "Schedule" && "Manage Schedule"}
                   {activeComponent === "ClinicProfile" && "Clinic Profile"}
-
                 </h1>
               </div>
 
               {/* User Dropdown */}
-              {userProfile && (
-                <div className="relative flex items-center space-x-4">
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="focus:outline-none"
-                    >
-                      {clinicProfile?.logo_url ? (
-                        <Image
-                          src={clinicProfile.logo_url}
-                          alt="Clinic logo"
-                          width={48}
-                          height={48}
-                          className="w-12 h-12 rounded-full cursor-pointer object-cover"
-                        />
-                      ) : userProfile.avatar_url ? (
-                        <Image
-                          src={userProfile.avatar_url}
-                          alt="User profile"
-                          width={48}
-                          height={48}
-                          className="w-12 h-12 rounded-full cursor-pointer"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold cursor-pointer">
-                          {userProfile.first_name?.[0]}{userProfile.last_name?.[0]}
-                        </div>
-                      )}
-                    </button>
-
-                    {isDropdownOpen && (
-                      <div className="absolute right-0 mt-2 bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-64">
-                        <div className="px-4 py-3 text-sm text-gray-900">
-                          <div className="font-medium">{`${userProfile.first_name} ${userProfile.last_name}`}</div>
-                          <div className="truncate">{userProfile.email}</div>
-                        </div>
-
-                        <ul className="py-2 text-sm text-gray-700">
-                          <li>
-                            <button
-                              onClick={() => {
-                                setActiveComponent(clinicProfile ? "ClinicProfile" : "UserProfile");
-                                setIsDropdownOpen(false);
-                              }}
-                              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                            >
-                              {clinicProfile ? "Clinic Profile" : "User Profile"}
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              onClick={() => {
-                                setActiveComponent("Settings");
-                                setIsDropdownOpen(false);
-                              }}
-                              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                            >
-                              Settings
-                            </button>
-                          </li>
-                          {clinicProfile && (
-                            <>
-                              <li>
-                                <button
-                                  onClick={() => {
-                                    setActiveComponent("Schedule");
-                                    setIsDropdownOpen(false);
-                                  }}
-                                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                >
-                                  Manage Schedule
-                                </button>
-                              </li>
-                            </>
-                          )}
-                        </ul>
-
-                        <div className="py-1">
-                          <button
-                            onClick={logout}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Logout
-                          </button>
-                        </div>
+              <div className="relative flex items-center space-x-4">
+                <div className="relative">
+                  <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="focus:outline-none"
+                  >
+                    {clinicProfile?.logo_url ? (
+                      <Image
+                        src={clinicProfile.logo_url}
+                        alt="Clinic logo"
+                        width={48}
+                        height={48}
+                        className="w-12 h-12 rounded-full cursor-pointer object-cover"
+                      />
+                    ) : userProfile?.avatar_url ? (
+                      <Image
+                        src={userProfile.avatar_url}
+                        alt="User profile"
+                        width={48}
+                        height={48}
+                        className="w-12 h-12 rounded-full cursor-pointer"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold cursor-pointer">
+                        {userProfile?.first_name?.[0]}
+                        {userProfile?.last_name?.[0]}
                       </div>
                     )}
-                  </div>
+                  </button>
+
+                  {isDropdownOpen && (
+                    <div className="absolute right-0 mt-2 bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-64">
+                      <div className="px-4 py-3 text-sm text-gray-900">
+                        <div className="font-medium">{`${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`}</div>
+                        <div className="truncate">{userProfile?.email || ''}</div>
+                      </div>
+
+                      <ul className="py-2 text-sm text-gray-700">
+                        <li>
+                          <button
+                            onClick={() => {
+                              setActiveComponent(clinicProfile ? "ClinicProfile" : "UserProfile");
+                              setIsDropdownOpen(false);
+                            }}
+                            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                          >
+                            {clinicProfile ? "Clinic Profile" : "User Profile"}
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            onClick={() => {
+                              setActiveComponent("Settings");
+                              setIsDropdownOpen(false);
+                            }}
+                            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                          >
+                            Settings
+                          </button>
+                        </li>
+                        {clinicProfile && (
+                          <li>
+                            <button
+                              onClick={() => {
+                                setActiveComponent("Schedule");
+                                setIsDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                            >
+                              Manage Schedule
+                            </button>
+                          </li>
+                        )}
+                      </ul>
+
+                      <div className="py-1">
+                        <button
+                          onClick={logout}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </header>
 
@@ -308,11 +326,10 @@ const VetClinicDashboard = () => {
           <main className="flex-1 overflow-y-auto bg-gray-50">
             {activeComponent === "VetDashboard" && <HomePage />}
             {activeComponent === "Patients" && <PatientList />}
-            {activeComponent === "Equipment" && <div>Appointment Content</div>}
+            {activeComponent === "Equipments" && <ClinicEquipmentManager clinicId={clinicId} />}
             {activeComponent === "Appointments" && <RealTimeAppointmentAlerts />}
             {activeComponent === "Schedule" && clinicId && <ManageSchedule clinicId={clinicId} />}
-            {activeComponent === "ClinicProfile" && <ClinicProfile clinicId={clinicId} />}
-            {activeComponent === "Equipments" && <ClinicEquipmentManager clinicId={clinicId} />}
+            {activeComponent === "ClinicProfile" && clinicId && <ClinicProfile clinicId={clinicId} />}
           </main>
         </div>
       </div>

@@ -53,16 +53,36 @@ const ManageSchedule = ({ clinicId }) => {
         const formattedData = data.map(item => ({
           ...item,
           day_name: days[item.day_of_week],
-          opening_time: item.opening_time || "",
-          closing_time: item.closing_time || ""
+          opening_time: item.opening_time ? formatTime(item.opening_time) : "",
+          closing_time: item.closing_time ? formatTime(item.closing_time) : ""
         }));
-        setRegularSchedule(formattedData);
+        
+        // Ensure we have all 7 days
+        const completeSchedule = Array(7).fill().map((_, day_of_week) => {
+          const existing = formattedData.find(d => d.day_of_week === day_of_week);
+          return existing || {
+            day_of_week,
+            day_name: days[day_of_week],
+            opening_time: "",
+            closing_time: "",
+            is_closed: true
+          };
+        });
+        
+        setRegularSchedule(completeSchedule);
       }
     } catch (err) {
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const formatTime = (timeString) => {
+    if (!timeString) return "";
+    // Handle both "HH:MM:SS" and "HH:MM" formats
+    const parts = timeString.split(':');
+    return `${parts[0]}:${parts[1]}`;
   };
 
   const fetchHolidays = async () => {
@@ -88,12 +108,12 @@ const ManageSchedule = ({ clinicId }) => {
     
     // Check if date is a regular day
     const dayOfWeek = date.getDay();
-    const schedule = regularSchedule.find(d => d.day_of_week === dayOfWeek);
+    const schedule = regularSchedule.find(d => d.day_of_week === dayOfWeek) || regularSchedule[dayOfWeek];
     if (schedule) {
       setTempSchedule({
-        opening_time: schedule.opening_time,
-        closing_time: schedule.closing_time,
-        is_closed: schedule.is_closed
+        opening_time: schedule.opening_time || "",
+        closing_time: schedule.closing_time || "",
+        is_closed: schedule.is_closed || false
       });
     }
   };
@@ -232,51 +252,35 @@ const ManageSchedule = ({ clinicId }) => {
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Clinic Schedule Calendar</h1>
         
         <DayPicker
-          mode="single"
-          selected={selectedDate}
-          onSelect={handleDateSelect}
-          modifiers={{
-            holiday: holidays.map(h => parseISO(h.holiday_date)),
-            closed: regularSchedule
-              .filter(day => day.is_closed)
-              .flatMap(day => {
-                const dates = [];
-                const today = new Date();
-                const endDate = new Date();
-                endDate.setMonth(today.getMonth() + 3);
-                for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
-                  if (d.getDay() === day.day_of_week) dates.push(new Date(d));
-                }
-                return dates;
-              })
-          }}
-          modifiersStyles={{
-            holiday: {
-              color: '#ef4444',
-              backgroundColor: '#fee2e2',
-            },
-            closed: {
-              color: '#9ca3af',
-              backgroundColor: '#f3f4f6'
-            }
-          }}
-          className="border-0 mx-auto"
-          styles={{
-            root: {
-              width: "100%", // Adjust the width of the calendar
-              maxWidth: "500px", // Set a maximum width
-              margin: "0 auto", // Center the calendar
-            },
-            day: {
-              margin: "0.2em", // Adjust spacing between days
-              width: "2.5em", // Adjust the width of each day
-              height: "2.5em", // Adjust the height of each day
-              borderRadius: "0.25em", // Adjust the border radius
-            },
-          }}
-        />
+  mode="single"
+  selected={selectedDate}
+  onSelect={handleDateSelect}
+  modifiers={{
+    holiday: holidays.map(h => parseISO(h.holiday_date))
+  }}
+  modifiersStyles={{
+    holiday: {
+      color: '#ef4444',
+      backgroundColor: '#fee2e2',
+    }
+  }}
+  className="border-0 mx-auto"
+  styles={{
+    root: {
+      width: "100%",
+      maxWidth: "500px",
+      margin: "0 auto",
+    },
+    day: {
+      margin: "0.2em",
+      width: "2.5em",
+      height: "2.5em",
+      borderRadius: "0.25em",
+    },
+  }}
+/>
 
-        {/* Date Actions */}
+       {/* Date Actions */}
         <div className="mt-6 flex flex-wrap gap-4">
           <button
             onClick={openScheduleModal}
@@ -286,21 +290,12 @@ const ManageSchedule = ({ clinicId }) => {
           </button>
           
           {isDateHoliday(selectedDate) ? (
-            <>
-              <button
-                onClick={openHolidayModal}
-                className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md"
-              >
-                Edit Holiday
-              </button>
-              <button
-                onClick={handleDeleteHoliday}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
-                disabled={isLoading}
-              >
-                Remove Holiday
-              </button>
-            </>
+            <button
+              onClick={openHolidayModal}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md"
+            >
+              Edit Holiday
+            </button>
           ) : (
             <button
               onClick={openHolidayModal}
@@ -335,36 +330,58 @@ const ManageSchedule = ({ clinicId }) => {
               <div className="w-4 h-4 bg-green-500 rounded-full mr-2"></div>
               <span className="text-green-600 font-medium">Open: </span>
               <span className="ml-2">
-                {regularSchedule[selectedDate.getDay()].opening_time} - 
-                {regularSchedule[selectedDate.getDay()].closing_time}
+                {regularSchedule[selectedDate.getDay()]?.opening_time || '--'} - 
+                {regularSchedule[selectedDate.getDay()]?.closing_time || '--'}
               </span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Holidays List */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Upcoming Holidays</h2>
-        {holidays.length === 0 ? (
-          <p className="text-gray-500">No holidays scheduled</p>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {holidays
-              .sort((a, b) => new Date(a.holiday_date) - new Date(b.holiday_date))
-              .map((holiday) => (
-                <li key={holiday.holiday_date} className="py-3 flex justify-between items-center">
-                  <div>
-                    <span className="font-medium">
-                      {format(parseISO(holiday.holiday_date), "MMMM d, yyyy")}
-                    </span>
-                    <p className="text-sm text-gray-600">{holiday.reason}</p>
-                  </div>
-                </li>
-              ))}
-          </ul>
-        )}
-      </div>
+     {/* Holidays List */}
+<div className="bg-white rounded-lg shadow p-6">
+  <h2 className="text-xl font-semibold mb-4">Upcoming Holidays</h2>
+  {holidays.length === 0 ? (
+    <p className="text-gray-500">No holidays scheduled</p>
+  ) : (
+    <ul className="divide-y divide-gray-200">
+      {holidays
+        .sort((a, b) => new Date(a.holiday_date) - new Date(b.holiday_date))
+        .map((holiday) => (
+          <li key={holiday.holiday_date} className="py-3 flex justify-between items-center group">
+            <div>
+              <span className="font-medium">
+                {format(parseISO(holiday.holiday_date), "MMMM d, yyyy")}
+              </span>
+              <p className="text-sm text-gray-600">{holiday.reason}</p>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedDate(parseISO(holiday.holiday_date));
+                handleDeleteHoliday();
+              }}
+              className="text-gray-400 hover:text-red-500 transition-colors p-1"
+              title="Delete holiday"
+              aria-label="Delete holiday"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-5 w-5" 
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path 
+                  fillRule="evenodd" 
+                  d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" 
+                  clipRule="evenodd" 
+                />
+              </svg>
+            </button>
+          </li>
+        ))}
+    </ul>
+  )}
+</div>
 
       {/* Schedule Modal */}
       {showScheduleModal && (
