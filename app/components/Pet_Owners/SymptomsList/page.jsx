@@ -306,13 +306,13 @@ export default function SymptomPage() {
             )}
 
             <div className="text-center">
-            <button 
-              onClick={() => router.push(`/map?diagnosis=${encodeURIComponent(diagnosisResult.possible_condition)}`)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center mx-auto"
-            >
-              <Hospital className="mr-2" />
-              Find Suitable Clinics
-            </button>
+              <button 
+                onClick={() => router.push(`/components/Pet_Owners/Map?diagnosis=${encodeURIComponent(diagnosisResult.possible_condition)}`)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center mx-auto"
+              >
+                <Hospital className="mr-2" />
+                Find Suitable Clinics
+              </button>
             </div>
           </div>
         </div>

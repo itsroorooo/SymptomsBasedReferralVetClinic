@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Icon } from "@iconify/react";
 
-
 const VetMap = () => {
   const [clinics, setClinics] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,8 +44,6 @@ const VetMap = () => {
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: ['places'],
   });
-
-  
   
 
   // Handle map load errors
@@ -93,25 +90,19 @@ const VetMap = () => {
   }, [supabase]);
 
   useEffect(() => {
-    const fetchAllClinics = async () => {
-      const { data: clinicsData } = await supabase
-        .from('veterinary_clinics')
-        .select('*')
-        .eq('is_verified', true);
-      setClinics(clinicsData || []); // Corrected variable name
-    };
-  
     const filterClinicsByEquipment = async () => {
       if (diagnosis) {
         try {
-          // Fetch clinics based on diagnosis
+          // 1. First get the recommended equipment for this diagnosis
           const { data: recommendedEquipment } = await supabase
             .from('equipment')
             .select('id, name')
-            .ilike('name', `%${diagnosis}%`);
+            .ilike('name', `%${diagnosis}%`); // Search for equipment related to diagnosis
   
           if (recommendedEquipment?.length > 0) {
+            // 2. Find clinics that have any of this equipment
             const equipmentIds = recommendedEquipment.map(e => e.id);
+            
             const { data: equippedClinics } = await supabase
               .from('clinic_equipment')
               .select('clinic_id')
@@ -119,6 +110,8 @@ const VetMap = () => {
   
             if (equippedClinics?.length > 0) {
               const clinicIds = equippedClinics.map(c => c.clinic_id);
+              
+              // 3. Get full clinic details for these clinics
               const { data: filteredClinics } = await supabase
                 .from('veterinary_clinics')
                 .select('*')
@@ -130,11 +123,21 @@ const VetMap = () => {
           }
         } catch (error) {
           console.error('Error filtering clinics:', error);
-          fetchAllClinics(); // Fallback to fetching all clinics
+          // Fallback to showing all clinics if there's an error
+          fetchAllClinics(); 
         }
       } else {
-        fetchAllClinics(); // Fetch all clinics if no diagnosis
+        // If no diagnosis, show all clinics
+        fetchAllClinics();
       }
+    };
+  
+    const fetchAllClinics = async () => {
+      const { data: clinicsData } = await supabase
+        .from('veterinary_clinics')
+        .select('*')
+        .eq('is_verified', true);
+      setClinics(clinicData || []);
     };
   
     filterClinicsByEquipment();
@@ -360,7 +363,7 @@ const VetMap = () => {
   }
 
   return (
-    <div className="relative font-[Poppins] h-full">
+    <div className="h-screen w-full relative font-[Poppins]">
       {/* Location Permission Modal */}
       {/* Location Permission Modal */}
       {showPermissionModal && (
