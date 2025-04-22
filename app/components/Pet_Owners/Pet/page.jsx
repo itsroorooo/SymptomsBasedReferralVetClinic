@@ -163,7 +163,7 @@ export default function PetsPage() {
   };
 
   return (
-    <div className="m-10 max-w-7xl mx-auto">
+    <div className="m-10 max-w-7xl mx-auto dark:bg-gray-800">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white"></h1>
         {pets.length > 0 && (

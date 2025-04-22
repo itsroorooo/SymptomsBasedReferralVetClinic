@@ -4,32 +4,44 @@ import { createClient } from "@/utils/supabase/client";
 import { Loader2, CheckCircle, Circle, TestTube2, Hospital } from "lucide-react";
 
 export default function SymptomPage() {
+  const [supabase] = useState(() => createClient());
   const [symptoms, setSymptoms] = useState([]);
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const [petType, setPetType] = useState("");
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
   const [diagnosisResult, setDiagnosisResult] = useState(null);
   const [recommendedClinics, setRecommendedClinics] = useState([]);
   const [showResults, setShowResults] = useState(false);
+  const [user, setUser] = useState(null);
+  const [pets, setPets] = useState([]);
 
-  console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY);
-
+  // Fetch user, pets, and symptoms on component mount
   useEffect(() => {
-    const fetchSymptoms = async () => {
-      const { data, error } = await supabase
-        .from("symptoms")
-        .select("*")
-        .order("name", { ascending: true });
+    const fetchData = async () => {
+      try {
+        // Get user session
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
 
-      if (!error) setSymptoms(data || []);
-      setIsLoading(false);
+        // Fetch symptoms
+        const { data: symptomsData, error: symptomsError } = await supabase
+          .from("symptoms")
+          .select("*")
+          .order("name", { ascending: true });
+
+        if (symptomsError) throw symptomsError;
+        setSymptoms(symptomsData || []);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    fetchSymptoms();
-  }, []);
+    fetchData();
+  }, [supabase]);
 
   const handleSymptomToggle = (symptomId) => {
     setSelectedSymptoms(prev => 
@@ -42,56 +54,94 @@ export default function SymptomPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    let consultation;
   
     try {
-      const symptomNames = symptoms
-        .filter(symptom => selectedSymptoms.includes(symptom.id))
-        .map(symptom => symptom.name);
+      // 1. Validate inputs
+      if (!petType) throw new Error('Please select a pet type');
+      if (selectedSymptoms.length === 0) throw new Error('Please select at least one symptom');
   
-      const response = await fetch('/api/diagnosis', {
+      // 2. Get symptom names
+      const symptomNames = symptoms
+        .filter(s => selectedSymptoms.includes(s.id))
+        .map(s => s.name);
+  
+      // 3. Create consultation record
+      const { data: consultationData, error: consultationError } = await supabase
+        .from('pet_consultations')
+        .insert({
+          owner_id: user.id,
+          pet_type: petType,
+          additional_info: additionalInfo,
+          status: 'processing'
+        })
+        .select()
+        .single();
+  
+      if (consultationError) throw consultationError;
+      consultation = consultationData;
+  
+      // 4. Store symptoms in junction table
+      const { error: symptomsError } = await supabase
+        .from('consultation_symptoms')
+        .insert(selectedSymptoms.map(symptomId => ({
+          consultation_id: consultation.id,
+          symptom_id: symptomId
+    })));
+  
+      if (symptomsError) throw symptomsError;
+  
+      // 5. Call AI diagnosis API
+      const response = await fetch('/api/diagnose', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           petType,
           symptoms: symptomNames,
-          additionalInfo
+          additionalInfo,
+          consultationId: consultation.id
         }),
       });
   
-      // First check if response exists
-      if (!response) {
-        throw new Error('No response from server');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Diagnosis failed');
       }
   
-      // Then check if response is OK
-      const text = await response.text();
-      
-      // If empty response
-      if (!text) {
-        throw new Error('Empty response from server');
-      }
+      const result = await response.json();
+      console.log('API Response:', result);
   
-      // Now parse JSON
-      const data = JSON.parse(text);
-      
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Diagnosis failed');
-      }
+      if (!result.success) throw new Error(result.error);
   
-      // Success case
-      setDiagnosisResult(data.data);
+      // 6. Display results
+      setDiagnosisResult({
+        possible_condition: result.data.possible_condition,
+        explanation: result.data.explanation,
+        recommended_equipment: result.data.recommended_equipment || []
+      });
       setShowResults(true);
   
+      // 7. Update consultation status
+      await supabase
+        .from('pet_consultations')
+        .update({ status: 'completed' })
+        .eq('id', consultation.id);
+  
     } catch (error) {
-      console.error('Submission error:', error);
-      alert(error.message || 'Failed to get diagnosis');
+      console.error('Diagnosis error:', error.message);
+      
+      if (consultation?.id) {
+        await supabase
+          .from('pet_consultations')
+          .update({ status: 'failed', error_message: error.message })
+          .eq('id', consultation.id);
+      }
+  
+      alert(`Error: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Rest of your component remains the same...
-  // [Keep all your existing return statements and other code below]
 
   if (isLoading) {
     return (
@@ -121,14 +171,9 @@ export default function SymptomPage() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-700">Possible Condition</h3>
-                  <p className="text-gray-800 text-xl">{diagnosisResult.possible_diagnosis}</p>
+                  <p className="text-gray-800 text-xl">{diagnosisResult.possible_condition}</p>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-700">Confidence Level</h3>
-                  <p className="text-gray-800">
-                    {Math.round(diagnosisResult.confidence_level * 100)}%
-                  </p>
-                </div>
+
                 <div>
                   <h3 className="text-lg font-semibold text-gray-700">Explanation</h3>
                   <p className="text-gray-800">{diagnosisResult.explanation}</p>
@@ -142,7 +187,7 @@ export default function SymptomPage() {
                 <TestTube2 className="mr-2" /> Recommended Tests & Equipment
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {diagnosisResult.recommended_equipment.map((equipment, index) => (
+                {diagnosisResult.recommended_equipment?.map((equipment, index) => (
                   <div key={index} className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <p className="font-medium text-blue-800">{equipment}</p>
                   </div>
@@ -154,16 +199,16 @@ export default function SymptomPage() {
             {recommendedClinics.length > 0 && (
               <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
-                  <Clinic className="mr-2" /> Nearby Clinics with Available Equipment
+                  <Hospital className="mr-2" /> Nearby Clinics with Available Equipment
                 </h2>
                 <div className="space-y-6">
                   {recommendedClinics.map((clinic, index) => (
                     <div key={index} className="border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="text-xl font-bold text-gray-800">{clinic.clinic.clinic_name}</h3>
-                          <p className="text-gray-600">{clinic.clinic.address}, {clinic.clinic.city}</p>
-                          <p className="text-gray-600">{clinic.clinic.contact_number}</p>
+                          <h3 className="text-xl font-bold text-gray-800">{clinic.clinic_name}</h3>
+                          <p className="text-gray-600">{clinic.address}, {clinic.city}</p>
+                          <p className="text-gray-600">{clinic.contact_number}</p>
                         </div>
                         <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
                           Book Appointment
