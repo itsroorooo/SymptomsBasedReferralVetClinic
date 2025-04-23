@@ -6,7 +6,7 @@ export default function OffersSection() {
   return (
     <section
       id="offers"
-      className="mx-auto py-8 px-6 md:px-20 scroll-smooth md:scroll-auto"
+      className="mx-auto py-8 px-6 md:px-20 scroll-smooth md:scroll-auto bg-white"
     >
       <h2 className="font-bold mt-4 text-center text-3xl md:text-5xl text-black leading-tight">
         What Does Our Website Offer?
