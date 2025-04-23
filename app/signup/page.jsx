@@ -4,14 +4,17 @@ import { useState } from "react";
 import Image from "next/image";
 import { signup } from "./actions";
 import { createClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [loading, setLoading] = useState(false);
   const [firstNameError, setFirstNameError] = useState("");
   const [lastNameError, setLastNameError] = useState("");
+  const [formError, setFormError] = useState("");
 
   const handleOAuthSignup = async (provider) => {
     setLoading(true);
@@ -21,12 +24,16 @@ export default function SignupPage() {
       if (error) throw error;
     } catch (error) {
       console.error("OAuth signup error:", error);
+      setFormError(error.message || "Failed to sign in with provider");
     } finally {
       setLoading(false);
     }
   };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setFormError("");
+    
     const formData = new FormData(event.target);
     const first_name = formData.get("firstName");
     const last_name = formData.get("lastName");
@@ -38,9 +45,21 @@ export default function SignupPage() {
     setEmailError("");
     setPasswordError("");
     setConfirmPasswordError("");
+    setFirstNameError("");
+    setLastNameError("");
 
     // Validation
     let isValid = true;
+
+    if (!first_name) {
+      setFirstNameError("First name is required");
+      isValid = false;
+    }
+
+    if (!last_name) {
+      setLastNameError("Last name is required");
+      isValid = false;
+    }
 
     if (!email) {
       setEmailError("Email is required");
@@ -67,19 +86,29 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      const result = await signup(formData);
+      // Create new FormData without confirmPassword
+      const submissionData = new FormData();
+      submissionData.append("firstName", first_name);
+      submissionData.append("lastName", last_name);
+      submissionData.append("email", email);
+      submissionData.append("password", password);
 
-      if (result?.error === "email") {
-        setEmailError(result.message);
-      } else if (result?.error) {
-        // Handle other errors
-        setEmailError(result.message || "An error occurred");
+      const result = await signup(submissionData);
+
+      if (result?.error) {
+        // Handle specific errors
+        if (result.error === "email") {
+          setEmailError(result.message);
+        } else {
+          setFormError(result.message || "An error occurred during signup");
+        }
+      } else if (result?.success) {
+        // Redirect to verification page on success
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
       }
-
-      // If success is true, redirect happens on server side
     } catch (error) {
       console.error("Signup error:", error);
-      setEmailError("An unexpected error occurred");
+      setFormError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -88,9 +117,9 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex">
       {/* Image on the left side - full height */}
-      <div className="sm:hidden md:block md:w-1/2  bg-blue-500 flex flex-col items-center justify-center rounded-b-full">
+      <div className="sm:hidden md:block md:w-1/2 bg-blue-500 flex flex-col items-center justify-center rounded-b-full">
         <div className="text-center p-8 mt-72">
-          <p className="text-2xl  text-white mt-4">
+          <p className="text-2xl text-white mt-4">
             Your account helps us care for them like you do
           </p>
         </div>
@@ -126,10 +155,16 @@ export default function SignupPage() {
                 Create an Account
               </h3>
               <p className="text-gray-600 mt-2">
-                Your pet’s health journey starts here, create an account to
+                Your pet's health journey starts here, create an account to
                 continue
               </p>
             </div>
+
+            {formError && (
+              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
+                {formError}
+              </div>
+            )}
 
             <form className="flex flex-col mt-6" onSubmit={handleSubmit}>
               {/* Name Fields */}
@@ -265,7 +300,6 @@ export default function SignupPage() {
 
               {/* Submit Button */}
               <button
-                formAction={signup}
                 type="submit"
                 className="w-full py-3 rounded-md text-white bg-blue-600 hover:bg-blue-900 text-sm sm:text-lg font-semibold shadow-md transition duration-300 flex justify-center items-center"
                 disabled={loading}
@@ -290,6 +324,7 @@ export default function SignupPage() {
                 onClick={() => handleOAuthSignup("google")}
                 className="w-full flex items-center justify-center py-2.5 rounded-lg bg-white border border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50"
                 aria-label="Continue with Google"
+                disabled={loading}
               >
                 <Image
                   src="/image/google.png"
@@ -306,6 +341,7 @@ export default function SignupPage() {
                 onClick={() => handleOAuthSignup("facebook")}
                 className="w-full flex items-center justify-center py-2.5 mt-3 rounded-lg bg-white border border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50"
                 aria-label="Continue with Facebook"
+                disabled={loading}
               >
                 <Image
                   src="/image/facebook.png"

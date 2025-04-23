@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 import bcrypt from "bcryptjs";
 
 export async function login(formData) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   const email = formData.get("email");
   const password = formData.get("password");

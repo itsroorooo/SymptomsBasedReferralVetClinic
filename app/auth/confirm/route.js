@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { generatePetDiagnosis } from '@/utils/openai';
 
@@ -11,7 +11,7 @@ export async function GET(request) {
   const next = searchParams.get("next") ?? "/";
 
   if (token_hash && type) {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     const { error } = await supabase.auth.verifyOtp({
       type,

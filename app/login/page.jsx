@@ -150,7 +150,7 @@ export default function LoginPage() {
         {/* Logo and text in top-right corner */}
         <div className="md:left-8 absolute top-8 left-14 flex items-center">
           <Image
-            src="/image/Logoblue.png"
+            src="/image/logo_blue.png"
             width={60}
             height={60}
             alt="SymptoVet Logo"
