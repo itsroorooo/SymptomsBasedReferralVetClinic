@@ -21,7 +21,7 @@ const Sidebar = ({
       {/* Logo */}
       <div className="p-4">
         <Image
-          src="/image/Logoblue.png"
+          src="/image/logo_blue.png"
           alt="SymptoVet Logo"
           width={112}
           height={112}
