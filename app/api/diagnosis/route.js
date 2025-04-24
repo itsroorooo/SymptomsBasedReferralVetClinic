@@ -1,82 +1,66 @@
 import { NextResponse } from 'next/server';
+import { createSupabaseServerClient } from '@/utils/supabase/server';
 import { generatePetDiagnosis } from '@/utils/openai';
 
-export const dynamic = 'force-dynamic'; // Ensure this API route is dynamic
-
 export async function POST(request) {
+  const supabase = createSupabaseServerClient();
+
   try {
-    // 1. Validate request
+    // Validate request format
     const contentType = request.headers.get('content-type');
     if (!contentType?.includes('application/json')) {
       return NextResponse.json(
-        { error: 'Invalid content type' },
+        { success: false, error: 'Invalid content type' },
         { status: 415 }
       );
     }
 
-    // 2. Parse body
-    let body;
-    try {
-      body = await request.json();
-    } catch (error) {
+    // Parse and validate body
+    const body = await request.json();
+    if (!body.petType || !Array.isArray(body.symptoms)) {
       return NextResponse.json(
-        { error: 'Invalid JSON body' },
+        { success: false, error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // 3. Validate fields
-    const { petType, symptoms, additionalInfo } = body;
-    
-    if (!petType || typeof petType !== 'string') {
-      return NextResponse.json(
-        { error: 'Valid petType is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!Array.isArray(symptoms)) {
-      return NextResponse.json(
-        { error: 'Symptoms must be an array' },
-        { status: 400 }
-      );
-    }
-
-    if (symptoms.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one symptom is required' },
-        { status: 400 }
-      );
-    }
-
-    // 4. Generate diagnosis
-    const diagnosis = await generatePetDiagnosis(
-      petType.toLowerCase(),
-      symptoms.filter(s => typeof s === 'string'),
-      typeof additionalInfo === 'string' ? additionalInfo : ''
+    // Generate diagnosis with validation
+    const result = await generatePetDiagnosis(
+      body.petType.toLowerCase().trim(),
+      body.symptoms.filter(s => typeof s === 'string'),
+      typeof body.additionalInfo === 'string' ? body.additionalInfo : ''
     );
 
-    // 5. Return standardized response
+    console.log('Validated AI Response:', {
+      possible_condition: result.possible_condition,
+      equipment_count: result.recommended_equipment.length,
+      explanation_length: result.explanation.length
+    });
+
     return NextResponse.json({
+      success: true,
       data: {
-        possible_condition: diagnosis.possible_condition,
-        explanation: diagnosis.explanation,
-        recommended_equipment: diagnosis.recommended_equipment,
-        confidence_level: diagnosis.confidence_level
+        possible_condition: result.possible_condition,
+        recommended_equipment: result.recommended_equipment,
+        explanation: result.explanation
       }
     });
 
   } catch (error) {
-    console.error('Diagnosis API Error:', {
+    // Detailed server-side logging
+    console.error('API Server Error:', {
       message: error.message,
       stack: error.stack,
       timestamp: new Date().toISOString()
     });
 
     return NextResponse.json(
-      { 
-        error: error.message || 'Diagnosis processing failed',
-        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+      {
+        success: false,
+        error: error.message,
+        ...(process.env.NODE_ENV === 'development' && {
+          stack: error.stack
+        })
       },
       { status: 500 }
     );

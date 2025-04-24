@@ -5,6 +5,7 @@ import { Loader2, CheckCircle, Circle, TestTube2, Hospital } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function SymptomPage() {
+  const router = useRouter();
   const [symptoms, setSymptoms] = useState([]);
   const [pets, setPets] = useState([]); // Added pets state
   const [selectedPetId, setSelectedPetId] = useState("");
@@ -16,24 +17,48 @@ export default function SymptomPage() {
   const [diagnosisResult, setDiagnosisResult] = useState(null);
   const [recommendedClinics, setRecommendedClinics] = useState([]);
   const [showResults, setShowResults] = useState(false);
-  const [user, setUser] = useState(null);
-  const [pets, setPets] = useState([]);
 
-  console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY);
+  const supabase = createClient();
 
   useEffect(() => {
-    const fetchSymptoms = async () => {
-      const { data, error } = await supabase
-        .from("symptoms")
-        .select("*")
-        .order("name", { ascending: true });
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Get current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) throw new Error("User not authenticated");
 
-      if (!error) setSymptoms(data || []);
-      setIsLoading(false);
+        // Fetch user's pets and symptoms
+        const [{ data: petsData, error: petsError }, 
+               { data: symptomsData, error: symptomsError }] = await Promise.all([
+          supabase.from("pets").select("*").eq("owner_id", user.id),
+          supabase.from("symptoms").select("*").order("name", { ascending: true })
+        ]);
+
+        if (petsError) throw petsError;
+        if (symptomsError) throw symptomsError;
+
+        setPets(petsData || []);
+        setSymptoms(symptomsData || []);
+
+      } catch (error) {
+        console.error("Fetch error:", error);
+        alert("Failed to load data: " + error.message);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchData();
   }, [supabase]);
+
+  useEffect(() => {
+    if (showResults && diagnosisResult) {
+      const query = `diagnosis=${encodeURIComponent(diagnosisResult.possible_condition)}&equipment=${encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))}`;
+      const url = `/components/Pet_Owners/FilteredMap?diagnosis=${encodeURIComponent(diagnosisResult.possible_condition)}&equipment=${encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))}`;
+router.push(url);
+    }
+  }, [showResults, diagnosisResult, router]);
 
   // Handle pet selection change
   const handlePetChange = (e) => {
@@ -57,61 +82,178 @@ export default function SymptomPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    let consultation;
   
     try {
-      const symptomNames = symptoms
-        .filter(symptom => selectedSymptoms.includes(symptom.id))
-        .map(symptom => symptom.name);
+      // Validate inputs with enhanced checks
+      if (!selectedPetId) throw new Error("Please select a pet");
+      if (selectedSymptoms.length === 0) throw new Error("Please select at least one symptom");
+      
+      const selectedPet = pets.find(pet => pet.id === selectedPetId);
+      if (!selectedPet) throw new Error("Invalid pet selection");
+
   
-      const response = await fetch('/api/diagnosis', {
+      // Validate symptoms exist in database
+      const validSymptomIds = symptoms.map(s => s.id);
+      const invalidSymptoms = selectedSymptoms.filter(id => !validSymptomIds.includes(id));
+      if (invalidSymptoms.length > 0) {
+        throw new Error(`Invalid symptoms selected: ${invalidSymptoms.join(', ')}`);
+      }
+  
+      // API call with full error context
+      const apiResponse = await fetch('/api/diagnosis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           petType: selectedPet.pet_type,
-          symptoms: symptomNames,
-          additionalInfo,
-          consultationId: consultation.id
+          symptoms: selectedSymptoms.map(id => 
+            symptoms.find(s => s.id === id)?.name || 'unknown'
+          ),
+          additionalInfo
         }),
       });
   
-      // First check if response exists
-      if (!response) {
-        throw new Error('No response from server');
+      // Handle non-200 responses
+      if (!apiResponse.ok) {
+        const errorBody = await apiResponse.text();
+        throw new Error(`API Error ${apiResponse.status}: ${errorBody.slice(0, 100)}`);
       }
   
-      // Then check if response is OK
-      const text = await response.text();
+      const responseData = await apiResponse.json();
+      console.log('API Response Data:', responseData);
+  
+      // Validate response structure
+      if (!responseData.data?.possible_condition) {
+        throw new Error('Invalid diagnosis response structure');
+      }
+  
+      // Database operations with transaction
+      const { data: { user } } = await supabase.auth.getUser();
+
+  
+      const { data: consultation, error: consultError } = await supabase
+      .from('pet_consultations')
+      .insert({
+        pet_id: selectedPetId,
+        owner_id: user.id,
+        additional_info: additionalInfo
+      })
+      .select()
+      .single();
+
+    if (consultError) throw new Error(`Consultation failed: ${consultError.message}`);
+    if (!consultation?.id) throw new Error('Consultation ID missing');
+
+    // 2. Insert consultation symptoms
+    const symptomRows = selectedSymptoms.map(symptomId => ({
+      consultation_id: consultation.id,
+      symptom_id: symptomId
+    }));
+    if (symptomRows.length > 0) {
+      const { error: symptomInsertError } = await supabase
+        .from('consultation_symptoms')
+        .insert(symptomRows);
+      if (symptomInsertError) {
+        console.error('Consultation Symptoms Insert Error:', symptomInsertError);
+        throw new Error('Failed to save consultation symptoms');
+      }
+    }
+
+    // 3. Insert diagnosis
+    const { data: diagnosis, error: diagnosisError } = await supabase
+      .from('ai_diagnoses')
+      .insert({
+        consultation_id: consultation.id,
+        possible_condition: responseData.data.possible_condition,
+        explanation: responseData.data.explanation
+      })
+      .select()
+      .single();
+
+    if (diagnosisError) {
+      console.error('Database Insert Error:', diagnosisError);
+      throw new Error('Failed to save diagnosis');
+    }
+    if (!diagnosis?.id) throw new Error('Diagnosis ID missing');
+
+    // 4. Insert recommended equipment into diagnosis_equipment
+    // First, fetch all equipment from the DB to match names to IDs
+    const { data: allEquipment, error: equipmentFetchError } = await supabase
+      .from('equipment')
+      .select('id, name');
+    if (equipmentFetchError) {
+      console.error('Equipment Fetch Error:', equipmentFetchError);
+      throw new Error('Failed to fetch equipment list');
+    }
+
+    // Map recommended equipment names to IDs
+    const recommendedEquipmentNames = responseData.data.recommended_equipment || [];
+    const equipmentRows = recommendedEquipmentNames
+      .map(eqName => {
+        const match = allEquipment.find(eq => eq.name.toLowerCase() === eqName.toLowerCase());
+        return match ? { diagnosis_id: diagnosis.id, equipment_id: match.id } : null;
+      })
+      .filter(Boolean);
+
+    if (equipmentRows.length > 0) {
+      const { error: diagnosisEquipmentError } = await supabase
+        .from('diagnosis_equipment')
+        .insert(equipmentRows);
+      if (diagnosisEquipmentError) {
+        console.error('Diagnosis Equipment Insert Error:', diagnosisEquipmentError);
+        throw new Error('Failed to save recommended equipment');
+      }
+    }
+
       
-      // If empty response
-      if (!text) {
-        throw new Error('Empty response from server');
+
+      if (!consultation?.id) throw new Error('Consultation ID missing');
+      if (!responseData.data.possible_condition) throw new Error('Diagnosis missing');
+      if (!responseData.data.explanation) throw new Error('Explanation missing');
+
+
+      if (diagnosisError) {
+        console.error('Database Insert Error:', diagnosisError);
+        console.error('Diagnosis Insert Context:', {
+          consultationId: consultation.id,
+          diagnosisData: responseData.data
+        });
+        throw new Error('Failed to save diagnosis');
+      }
+      // ...existing code...
+  
+      if (diagnosisError) {
+        console.error('Database Insert Error:', {
+          error: diagnosisError,
+          consultationId: consultation.id,
+          diagnosisData: responseData.data
+        });
+        throw new Error('Failed to save diagnosis');
       }
   
-      // Now parse JSON
-      const data = JSON.parse(text);
-      
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Diagnosis failed');
-      }
-  
-      // Success case
-      setDiagnosisResult(data.data);
+      setDiagnosisResult(responseData.data);
       setShowResults(true);
   
-      // 7. Update consultation status
-      await supabase
-        .from('pet_consultations')
-        .update({ status: 'completed' })
-        .eq('id', consultation.id);
-  
     } catch (error) {
-      console.error('Submission error:', error);
-      alert(error.message || 'Failed to get diagnosis');
+      // Structured error logging
+      console.error('Full Error Report:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        components: {
+          selectedPetId,
+          selectedSymptoms,
+          symptomsCount: symptoms.length,
+          petsCount: pets.length
+        },
+        timestamp: new Date().toISOString()
+      });
+      
+      alert(`Diagnosis Error: ${error.message}\n\nCheck browser console for details`);
     } finally {
       setIsSubmitting(false);
     }
   };
+
 
   if (isLoading) {
     return (
@@ -123,6 +265,11 @@ export default function SymptomPage() {
 
   if (showResults && diagnosisResult) {
     const selectedPet = pets.find(pet => pet.id === selectedPetId);
+    const queryParams = new URLSearchParams({
+      diagnosis: encodeURIComponent(diagnosisResult.possible_condition),
+      equipment: encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))
+    });
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
@@ -142,13 +289,7 @@ export default function SymptomPage() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-700">Possible Condition</h3>
-                  <p className="text-gray-800 text-xl">{diagnosisResult.possible_diagnosis}</p>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-700">Confidence Level</h3>
-                  <p className="text-gray-800">
-                    {Math.round(diagnosisResult.confidence_level * 100)}%
-                  </p>
+                  <p className="text-gray-800 text-xl">{diagnosisResult.possible_condition}</p>
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-700">Explanation</h3>
@@ -163,7 +304,7 @@ export default function SymptomPage() {
                 <TestTube2 className="mr-2" /> Recommended Tests & Equipment
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {diagnosisResult.recommended_equipment?.map((equipment, index) => (
+                {diagnosisResult.recommended_equipment.map((equipment, index) => (
                   <div key={index} className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <p className="font-medium text-blue-800">{equipment}</p>
                   </div>
@@ -175,16 +316,16 @@ export default function SymptomPage() {
             {recommendedClinics.length > 0 && (
               <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
-                  <Hospital className="mr-2" /> Nearby Clinics with Available Equipment
+                  <Clinic className="mr-2" /> Nearby Clinics with Available Equipment
                 </h2>
                 <div className="space-y-6">
                   {recommendedClinics.map((clinic, index) => (
                     <div key={index} className="border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="text-xl font-bold text-gray-800">{clinic.clinic_name}</h3>
-                          <p className="text-gray-600">{clinic.address}, {clinic.city}</p>
-                          <p className="text-gray-600">{clinic.contact_number}</p>
+                          <h3 className="text-xl font-bold text-gray-800">{clinic.clinic.clinic_name}</h3>
+                          <p className="text-gray-600">{clinic.clinic.address}, {clinic.clinic.city}</p>
+                          <p className="text-gray-600">{clinic.clinic.contact_number}</p>
                         </div>
                         <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
                           Book Appointment
@@ -207,13 +348,19 @@ export default function SymptomPage() {
             )}
 
             <div className="text-center">
-              <button 
-                onClick={() => router.push(`/components/Pet_Owners/Map?diagnosis=${encodeURIComponent(diagnosisResult.possible_condition)}`)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center mx-auto"
-              >
-                <Hospital className="mr-2" />
-                Find Suitable Clinics
-              </button>
+            <button 
+              onClick={() => router.push({
+                pathname: '/components/Pet_Owners/FilteredMap',
+                query: {
+                  diagnosis: encodeURIComponent(diagnosisResult.possible_condition),
+                  equipment: encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))
+                }
+              })}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center mx-auto"
+            >
+              <Hospital className="mr-2" />
+              Find Suitable Clinics
+            </button>
             </div>
           </div>
         </div>
