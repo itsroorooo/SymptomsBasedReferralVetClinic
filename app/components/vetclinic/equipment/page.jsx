@@ -11,7 +11,6 @@ const ClinicEquipmentManager = ({ clinicId }) => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [equipmentToDelete, setEquipmentToDelete] = useState(null);
   const [isAddingCustom, setIsAddingCustom] = useState(false);
   const [customEquipment, setCustomEquipment] = useState("");
   const [customDescription, setCustomDescription] = useState("");
@@ -60,7 +59,7 @@ const ClinicEquipmentManager = ({ clinicId }) => {
     fetchData();
   }, [clinicId]);
 
-  // Equipment selection toggle - now handles both selection and submission
+  // Equipment selection toggle
   const handleEquipmentToggle = async (id) => {
     const isSelected = selectedEquipment.includes(id);
     const newSelected = isSelected 
@@ -136,10 +135,11 @@ const ClinicEquipmentManager = ({ clinicId }) => {
   
       const newEquipment = await response.json();
       
-      // Update state - important to include is_standard
-      setClinicEquipment(prev => [...prev, newEquipment]);
+      setClinicEquipment(prev => [...prev, {
+        ...newEquipment,
+        is_standard: false
+      }]);
       
-      // Reset form
       setCustomEquipment("");
       setCustomDescription("");
       setIsAddingCustom(false);
@@ -173,46 +173,37 @@ const ClinicEquipmentManager = ({ clinicId }) => {
 
   // Save edited equipment
   const handleSaveEdit = async () => {
+    if (!currentEquipment) return;
+    
     try {
-      let response;
+      const url = `/api/vetclinic/clinic-equipment/${currentEquipment.id}`;
       
-      if (currentEquipment.is_standard) {
-        // For standard equipment, only update availability
-        response = await fetch(`/api/vetclinic/clinic-equipment/${currentEquipment.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            is_available: editForm.is_available
-          }),
-        });
-      } else {
-        // For custom equipment, update all fields
-        response = await fetch(`/api/vetclinic/clinic-equipment/${currentEquipment.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+      const body = currentEquipment.is_standard
+        ? { is_available: editForm.is_available }
+        : {
             equipment_name: editForm.name,
             equipment_description: editForm.description,
             is_available: editForm.is_available
-          }),
-        });
-      }
-  
+          };
+
+      const response = await fetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to update equipment");
       }
-  
-      const updatedData = await response.json();
+
+      const updatedEquipment = await response.json();
       
       setClinicEquipment(prev =>
-        prev.map(equipment =>
-          equipment.id === currentEquipment.id ? {
-            ...equipment,
-            equipment_name: editForm.name,
-            equipment_description: editForm.description,
-            is_available: editForm.is_available
-          } : equipment
+        prev.map(item =>
+          item.id === currentEquipment.id
+            ? { ...item, ...updatedEquipment }
+            : item
         )
       );
       
@@ -220,51 +211,37 @@ const ClinicEquipmentManager = ({ clinicId }) => {
       setIsEditModalOpen(false);
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
-      console.error("Error updating equipment:", err.message);
       setApiError(err.message);
     }
   };
 
   // Delete equipment
   const handleDeleteEquipment = async () => {
+    if (!currentEquipment) return;
+    
     try {
-      // For standard equipment, we remove it from the selection
-      if (currentEquipment.is_standard) {
-        const newSelected = selectedEquipment.filter(id => id !== currentEquipment.equipment_id);
-        
-        const response = await fetch("/api/vetclinic/clinic-equipment/batch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clinic_id: clinicId,
-            equipment_ids: newSelected,
-          }),
-        });
+      const response = await fetch(`/api/vetclinic/clinic-equipment/${currentEquipment.id}`, {
+        method: "DELETE",
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to remove equipment");
-        }
-      } else {
-        // For custom equipment, we delete it entirely
-        const response = await fetch(`/api/vetclinic/clinic-equipment/${currentEquipment.id}`, {
-          method: "DELETE",
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to delete equipment");
-        }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete equipment");
       }
 
       setClinicEquipment(prev => 
-        prev.filter(equipment => equipment.id !== currentEquipment.id)
+        prev.filter(item => item.id !== currentEquipment.id)
       );
-      setSuccessMessage("Equipment removed successfully");
+      
+      setSuccessMessage(
+        currentEquipment.is_standard 
+          ? "Equipment removed from clinic" 
+          : "Equipment deleted successfully"
+      );
+      
       setIsDeleteModalOpen(false);
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
-      console.error("Error deleting equipment:", err.message);
       setApiError(err.message);
     }
   };
@@ -294,7 +271,7 @@ const ClinicEquipmentManager = ({ clinicId }) => {
   }
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-6 p-4 relative">
       {/* Success and Error Messages */}
       {successMessage && (
         <div className="p-3 bg-green-100 text-green-700 rounded-md">
@@ -407,6 +384,9 @@ const ClinicEquipmentManager = ({ clinicId }) => {
                   Name
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -426,6 +406,9 @@ const ClinicEquipmentManager = ({ clinicId }) => {
                   <tr key={equipment.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {equipment.equipment_name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {equipment.equipment_description || "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span
@@ -467,72 +450,72 @@ const ClinicEquipmentManager = ({ clinicId }) => {
 
       {/* Edit Equipment Modal */}
       {isEditModalOpen && (
-        <div className="fixed z-10 inset-0 overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Edit Equipment</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Name</label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={editForm.name}
-                      onChange={handleEditChange}
-                      disabled={currentEquipment?.is_standard}
-                      className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                        currentEquipment?.is_standard ? "bg-gray-100" : ""
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Description</label>
-                    <textarea
-                      name="description"
-                      value={editForm.description}
-                      onChange={handleEditChange}
-                      disabled={currentEquipment?.is_standard}
-                      rows={3}
-                      className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                        currentEquipment?.is_standard ? "bg-gray-100" : ""
-                      }`}
-                    />
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="is_available"
-                      name="is_available"
-                      checked={editForm.is_available}
-                      onChange={handleEditChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="is_available" className="ml-2 block text-sm text-gray-900">
-                      Available
-                    </label>
-                  </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-opacity-70 backdrop-blur-sm"
+            onClick={() => setIsEditModalOpen(false)}
+          ></div>
+          <div 
+            className="relative bg-white rounded-lg shadow-xl w-full max-w-md border border-gray-300 mx-4"
+            style={{ boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}
+          >
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Equipment</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={editForm.name}
+                    onChange={handleEditChange}
+                    disabled={currentEquipment?.is_standard}
+                    className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                      currentEquipment?.is_standard ? "bg-gray-100" : ""
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Description</label>
+                  <textarea
+                    name="description"
+                    value={editForm.description}
+                    onChange={handleEditChange}
+                    disabled={currentEquipment?.is_standard}
+                    rows={3}
+                    className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                      currentEquipment?.is_standard ? "bg-gray-100" : ""
+                    }`}
+                  />
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="is_available"
+                    name="is_available"
+                    checked={editForm.is_available}
+                    onChange={handleEditChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="is_available" className="ml-2 block text-sm text-gray-900">
+                    Available
+                  </label>
                 </div>
               </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  onClick={handleSaveEdit}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Save Changes
-                </button>
-                <button
-                  onClick={() => setIsEditModalOpen(false)}
-                  type="button"
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
+            </div>
+            <div className="bg-gray-50 px-4 py-3 flex justify-end space-x-3">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
@@ -540,42 +523,46 @@ const ClinicEquipmentManager = ({ clinicId }) => {
 
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (
-        <div className="fixed z-10 inset-0 overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <TrashIcon className="h-6 w-6 text-red-600" />
-                  </div>
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">Delete Equipment</h3>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">
-                        Are you sure you want to delete "{currentEquipment?.equipment_name}"? This action cannot be undone.
-                      </p>
-                    </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-opacity-70 backdrop-blur-sm"
+            onClick={() => setIsDeleteModalOpen(false)}
+          ></div>
+          <div 
+            className="relative bg-white rounded-lg shadow-xl w-full max-w-md border border-gray-300 mx-4"
+            style={{ boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}
+          >
+            <div className="p-6">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                  <TrashIcon className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {currentEquipment?.is_standard ? "Remove" : "Delete"} Equipment
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500">
+                      Are you sure you want to {currentEquipment?.is_standard ? "remove" : "delete"} "{currentEquipment?.equipment_name}"? 
+                      {currentEquipment?.is_standard ? " It can be added back later." : " This action cannot be undone."}
+                    </p>
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  onClick={handleDeleteEquipment}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={() => setIsDeleteModalOpen(false)}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
+            </div>
+            <div className="bg-gray-50 px-4 py-3 flex justify-end space-x-3">
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteEquipment}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+              >
+                {currentEquipment?.is_standard ? "Remove" : "Delete"}
+              </button>
             </div>
           </div>
         </div>

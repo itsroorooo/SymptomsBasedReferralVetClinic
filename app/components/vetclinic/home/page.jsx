@@ -11,7 +11,6 @@ import {
 export default function HomePage() {
   const supabase = createClient();
   const [appointmentsToday, setAppointmentsToday] = useState(0);
-  const [pendingRecords, setPendingRecords] = useState(0);
   const [equipmentNeedingAttention, setEquipmentNeedingAttention] = useState(0);
   const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,12 +32,6 @@ export default function HomePage() {
         .eq('appointment_date', today)
         .neq('status', 'cancelled')
         .neq('status', 'declined');
-
-      // Fetch pending records (consultations)
-      const { count: pendingConsultationsCount } = await supabase
-        .from('pet_consultations')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
 
       // Fetch equipment needing attention
       const { count: equipmentAttentionCount } = await supabase
@@ -62,7 +55,6 @@ export default function HomePage() {
         .limit(5);
 
       setAppointmentsToday(todayAppointmentsCount || 0);
-      setPendingRecords(pendingConsultationsCount || 0);
       setEquipmentNeedingAttention(equipmentAttentionCount || 0);
       
       // Format recent activities
@@ -106,11 +98,11 @@ export default function HomePage() {
             {/* Dashboard content */}
             {loading ? (
               <div className="flex justify-center items-center min-h-screen">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+              </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
                   {/* Stats Card - Appointments Today */}
                   <div className="bg-white overflow-hidden shadow rounded-lg">
                     <div className="p-5">
@@ -126,29 +118,6 @@ export default function HomePage() {
                             <dd>
                               <div className="text-lg font-medium text-gray-900">
                                 {appointmentsToday}
-                              </div>
-                            </dd>
-                          </dl>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stats Card - Pending Records */}
-                  <div className="bg-white overflow-hidden shadow rounded-lg">
-                    <div className="p-5">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <ClipboardDocumentListIcon className="h-6 w-6 text-gray-400" />
-                        </div>
-                        <div className="ml-5 w-0 flex-1">
-                          <dl>
-                            <dt className="text-sm font-medium text-gray-500 truncate">
-                              Pending Records
-                            </dt>
-                            <dd>
-                              <div className="text-lg font-medium text-gray-900">
-                                {pendingRecords}
                               </div>
                             </dd>
                           </dl>

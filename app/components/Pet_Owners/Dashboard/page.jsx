@@ -8,7 +8,7 @@ import { logout } from "@/app/logout/actions";
 import PetsPage from "../Pet/page";
 import SymptomsList from "../SymptomsList/page";
 import { createClient } from "@/utils/supabase/client";
-import VetMap from "../Map/page";
+import AllMap from "../Map/DisplayAllMap";
 import { useRouter } from "next/navigation";
 import ProfilePage from "../profile/page";
 import SettingsPage from "../settings/page";
@@ -313,7 +313,7 @@ const Dashboard = () => {
             {activeComponent === "Dashboard" && <div>Home Content</div>}
             {activeComponent === "pet" && <PetsPage />}
             {activeComponent === "appointment" && <AppointmentPage />}
-            {activeComponent === "map" && <VetMap />}
+            {activeComponent === "map" && <AllMap />}
             {activeComponent === "symptoms" && <SymptomsList />}
             {activeComponent === "profile" && (
               <ProfilePage
