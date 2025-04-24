@@ -1,40 +1,36 @@
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY || '',
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
   dangerouslyAllowBrowser: true
 });
 
-export async function generatePetDiagnosis(petType, symptomsList, additionalInfo) {
-  if (!process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
-    throw new Error("OpenAI API key is not configured");
-  }
-
-  const symptomsText = symptomsList.join(', ');
-  
-  const prompt = `
-  You are a veterinary AI assistant. Analyze the following pet symptoms and provide:
-  1. A possible diagnosis (be conservative, list as "Possible Condition")
-  2. Recommended diagnostic tests/equipment needed (from standard veterinary tools)
-  3. Brief explanation of your reasoning
-
-  Pet Type: ${petType}
-  Symptoms: ${symptomsText}
-  Additional Info: ${additionalInfo || 'None provided'}
-
-  Respond in JSON format with these keys:
-  - possible_condition
-  - recommended_equipment (array of equipment names)
-  - explanation
-  `;
-
+export async function generatePetDiagnosis(petType, symptomsList, additionalInfo = '') {
   try {
+    const symptomsText = symptomsList.join(', ') || 'No specific symptoms';
+    
+    const prompt = `
+    As a veterinary AI assistant, analyze these symptoms and provide:
+    {
+      "possible_condition": "[Most likely condition]",
+      "recommended_equipment": ["List", "Of", "Equipment"],
+      "explanation": "Brief clinical explanation"
+    }
+
+    Strictly use this JSON format. Do not include any additional text.
+
+    Patient Details:
+    - Species: ${petType}
+    - Symptoms: ${symptomsText}
+    - Additional Info: ${additionalInfo || 'None'}
+    `;
+
     const response = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
       messages: [
         { 
           role: "system", 
-          content: "You are a veterinary assistant. Respond ONLY with valid JSON." 
+          content: "You are a veterinary diagnostic assistant. Respond ONLY with valid JSON matching the exact structure provided." 
         },
         { 
           role: "user", 
@@ -42,13 +38,39 @@ export async function generatePetDiagnosis(petType, symptomsList, additionalInfo
         }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.3
+      temperature: 0.2
     });
 
-    const content = response.choices[0].message.content;
-    return JSON.parse(content);
+    const rawResponse = response.choices[0]?.message?.content;
+    console.log('Raw AI Response:', rawResponse);
+
+    if (!rawResponse) throw new Error("Empty response from AI service");
+
+    const parsedResponse = JSON.parse(rawResponse);
+    
+    // Validate response structure
+    const requiredFields = ['possible_condition', 'recommended_equipment', 'explanation'];
+    const missingFields = requiredFields.filter(field => !(field in parsedResponse));
+    
+    if (missingFields.length > 0) {
+      throw new Error(`AI response missing required fields: ${missingFields.join(', ')}`);
+    }
+
+    // Transform and validate values
+    return {
+      possible_condition: parsedResponse.possible_condition.toString(),
+      recommended_equipment: Array.isArray(parsedResponse.recommended_equipment)
+        ? parsedResponse.recommended_equipment.map(String)
+        : [],
+      explanation: parsedResponse.explanation.toString()
+    };
+
   } catch (error) {
-    console.error("OpenAI error:", error);
-    throw new Error("Failed to generate diagnosis. Please try again later.");
+    console.error('OpenAI Processing Error:', {
+      error: error.message,
+      stack: error.stack,
+      input: { petType, symptomsList, additionalInfo }
+    });
+    throw new Error(`AI processing failed: ${error.message}`);
   }
 }

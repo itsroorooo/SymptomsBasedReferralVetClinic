@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Icon } from "@iconify/react";
+import { Hospital, MapPin } from "lucide-react";
 
 const VetMap = () => {
   const [clinics, setClinics] = useState([]);
@@ -27,6 +28,11 @@ const VetMap = () => {
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [availableTimes, setAvailableTimes] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const searchParams = useSearchParams();
+  const diagnosis = searchParams.get('diagnosis');
+  const equipmentParam = searchParams.get('equipment');
+  const recommendedEquipment = equipmentParam ? JSON.parse(decodeURIComponent(equipmentParam)) : [];
 
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -51,40 +57,45 @@ const VetMap = () => {
     }
   }, [loadError]);
 
-  // Fetch clinics from Supabase
+  // Fetch clinics from Supabase with equipment filter
   useEffect(() => {
     const fetchClinics = async () => {
       try {
-        const { data: clinicsData, error } = await supabase
-          .from("veterinary_clinics")
+        const diagnosis = searchParams.get('diagnosis');
+        const equipment = JSON.parse(searchParams.get('equipment') || '[]');
+        
+        if (!diagnosis || equipment.length === 0) {
+          throw new Error('Missing diagnosis or equipment parameters');
+        }
+  
+        const { data, error } = await supabase
+          .from('veterinary_clinics')
           .select(`
-            id,
-            clinic_name,
-            address,
-            city,
-            zip_code,
-            country,
-            latitude,
-            longitude,
-            contact_number,
-            email,
-            logo_url,
-            is_verified
+            *,
+            clinic_equipment!inner(
+              equipment:equipment_id(name)
+            )
           `)
-          .eq("is_verified", true);
-
+          .in('clinic_equipment.equipment.name', equipment)
+          .eq('clinic_equipment.is_available', true);
+  
         if (error) throw error;
-
-        setClinics(clinicsData.filter(clinic => clinic.latitude && clinic.longitude));
+        setClinics(data || []);
+        setLoading(false); 
+        
       } catch (error) {
-        console.error("Error fetching clinics:", error);
-      } finally {
+        console.error('Error fetching clinics:', {
+          message: error.message,
+          stack: error.stack,
+          params: searchParams.toString()
+        });
+        setError(error.message);
         setLoading(false);
       }
     };
-
+  
     fetchClinics();
-  }, [supabase]);
+  }, [searchParams, supabase]);
 
   // Fetch user's pets when modal opens
   useEffect(() => {
@@ -93,7 +104,7 @@ const VetMap = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: petsData } = await supabase
-            .from("pets", pets.id)
+            .from("pets")
             .select("*")
             .eq("owner_id", user.id);
           setPets(petsData || []);
@@ -107,7 +118,6 @@ const VetMap = () => {
   useEffect(() => {
     if (appointmentDate && selectedClinic) {
       const fetchAvailableTimes = async () => {
-        // Get clinic's working hours for the selected day
         const dayOfWeek = new Date(appointmentDate).getDay();
         const { data: schedule } = await supabase
           .from("veterinary_schedules")
@@ -117,7 +127,6 @@ const VetMap = () => {
           .single();
 
         if (schedule && !schedule.is_closed) {
-          // Generate time slots (every 30 minutes)
           const times = [];
           let currentTime = new Date(`1970-01-01T${schedule.opening_time}`);
           const endTime = new Date(`1970-01-01T${schedule.closing_time}`);
@@ -183,7 +192,7 @@ const VetMap = () => {
       if (!user) throw new Error("User not logged in");
       if (!selectedPet) throw new Error("Please select a pet");
 
-      // Create consultation first
+      // Create consultation
       const { data: consultation, error: consultError } = await supabase
         .from("pet_consultations")
         .insert({
@@ -194,9 +203,10 @@ const VetMap = () => {
         .select()
         .single();
 
-      if (consultError) throw consultError;
+        if (consultError) throw new Error(`Consultation failed: ${consultError.message}`);
+        if (!consultation?.id) throw new Error('Consultation ID missing');
 
-      // Add symptoms to consultation
+      // Add symptoms
       const symptomInserts = selectedSymptoms.map(symptomId => ({
         consultation_id: consultation.id,
         symptom_id: symptomId
@@ -217,7 +227,7 @@ const VetMap = () => {
         if (symptomError) throw symptomError;
       }
 
-      // Create the appointment
+      // Create appointment
       const { error: appointmentError } = await supabase
         .from("appointments")
         .insert({
@@ -233,7 +243,6 @@ const VetMap = () => {
 
       if (appointmentError) throw appointmentError;
 
-      // Success! Close modal and show confirmation
       setShowAppointmentModal(false);
       alert("Appointment booked successfully!");
 
@@ -246,7 +255,6 @@ const VetMap = () => {
   };
 
   const calculateEndTime = (startTime) => {
-    // Default to 30 minute appointments
     const [hours, minutes] = startTime.split(":").map(Number);
     const endTime = new Date(1970, 0, 1, hours, minutes + 30);
     return endTime.toTimeString().substring(0, 5);
@@ -260,7 +268,6 @@ const VetMap = () => {
     mapRef.current = null;
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -269,7 +276,6 @@ const VetMap = () => {
     );
   }
 
-  // Map load error state
   if (mapLoadError) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4 text-center">
@@ -295,7 +301,6 @@ const VetMap = () => {
     );
   }
 
-  // Map loading state
   if (!isLoaded) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
@@ -307,7 +312,6 @@ const VetMap = () => {
 
   return (
     <div className="h-screen w-full relative font-[Poppins]">
-      {/* Location Permission Modal */}
       {/* Location Permission Modal */}
       {showPermissionModal && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
@@ -332,7 +336,33 @@ const VetMap = () => {
         </div>
       )}
 
-      {/* Main Google Map */}
+      {/* Map Header */}
+      <div className="absolute top-4 left-4 z-[1000] bg-white p-4 rounded-lg shadow-md">
+        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <Hospital className="h-6 w-6 text-blue-500" />
+          {recommendedEquipment.length > 0 ? (
+            <>
+              Clinics for: {decodeURIComponent(diagnosis)}
+              <span className="block text-sm font-normal text-gray-600 mt-1">
+                Showing {clinics.length} clinics with required equipment
+              </span>
+            </>
+          ) : "All Veterinary Clinics"}
+        </h1>
+        {recommendedEquipment.length > 0 && (
+          <div className="mt-2">
+            <p className="text-sm text-gray-600">
+              Required equipment: 
+              {recommendedEquipment.map((equip, index) => (
+                <span key={index} className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                  {equip}
+                </span>
+              ))}
+            </p>
+          </div>
+        )}
+      </div>
+
       <GoogleMap
         mapContainerStyle={{ width: "100%", height: "100%" }}
         center={BUTUAN_CENTER}
@@ -347,14 +377,16 @@ const VetMap = () => {
           clickableIcons: false,
         }}
       >
-        {/* Clinics Markers */}
+        {/* Clinic Markers */}
         {clinics.map((clinic) => (
           <Marker
             key={clinic.id}
             position={{ lat: clinic.latitude, lng: clinic.longitude }}
             onClick={() => setActiveInfoWindow(clinic.id)}
             icon={{
-              url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+              url: recommendedEquipment.length > 0 
+                ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png"
+                : "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
               scaledSize: new window.google.maps.Size(32, 32),
             }}
           >
@@ -365,19 +397,33 @@ const VetMap = () => {
                     {clinic.clinic_name}
                   </h3>
                   <div className="flex items-start mb-3">
-                    <Icon
-                      icon="mdi:map-marker"
-                      className="text-gray-500 mr-2 mt-0.5 flex-shrink-0"
-                    />
+                    <Icon icon="mdi:map-marker" className="text-gray-500 mr-2 mt-0.5 flex-shrink-0" />
                     <p className="text-sm text-gray-600">
                       {clinic.address}, {clinic.city}, {clinic.country}
                     </p>
                   </div>
+                  
+                  {clinic.equipment?.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-sm font-medium text-green-600 flex items-center">
+                        <Icon icon="mdi:medical-bag" className="mr-1" />
+                        Available Equipment:
+                      </p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {clinic.equipment.map((equip, index) => (
+                          <span 
+                            key={index}
+                            className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                          >
+                            {equip}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center mb-4">
-                    <Icon
-                      icon="mdi:phone"
-                      className="text-gray-500 mr-2 flex-shrink-0"
-                    />
+                    <Icon icon="mdi:phone" className="text-gray-500 mr-2 flex-shrink-0" />
                     <a
                       href={`tel:${clinic.contact_number}`}
                       className="text-sm text-blue-600 hover:underline"
@@ -386,7 +432,7 @@ const VetMap = () => {
                     </a>
                   </div>
                   <button
-                    onClick={() => handleBookAppointment(clinic.id)}
+                    onClick={() => handleBookAppointment(clinic)}
                     className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors"
                   >
                     Book Appointment
@@ -408,21 +454,17 @@ const VetMap = () => {
           >
             {showLocationPopup && (
               <InfoWindow>
-                <div className="text-sm font-medium text-blue-600">
-                  You are here
-                </div>
+                <div className="text-sm font-medium text-blue-600">You are here</div>
               </InfoWindow>
             )}
           </Marker>
         )}
       </GoogleMap>
 
-      {/* Locate Me Button */}
       {/* Appointment Booking Modal */}
       {showAppointmentModal && selectedClinic && (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000] p-4">
           <div className="bg-white rounded-2xl overflow-hidden w-full max-w-md animate-pop-in">
-            {/* Modal Header */}
             <div className="bg-gradient-to-r from-pink-400 to-purple-500 p-5 text-white relative">
               <button 
                 onClick={() => setShowAppointmentModal(false)}
@@ -441,9 +483,7 @@ const VetMap = () => {
               </div>
             </div>
 
-            {/* Modal Content */}
             <div className="p-5 max-h-[70vh] overflow-y-auto">
-              {/* Pet Selection */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
                   <Icon icon="mdi:paw-outline" className="mr-2" />
@@ -475,7 +515,6 @@ const VetMap = () => {
                 )}
               </div>
 
-              {/* Date Picker */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
                   <Icon icon="mdi:calendar" className="mr-2" />
@@ -490,7 +529,6 @@ const VetMap = () => {
                 />
               </div>
 
-              {/* Time Slot Selection */}
               {appointmentDate && (
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
@@ -521,7 +559,6 @@ const VetMap = () => {
                 </div>
               )}
 
-              {/* Symptoms Selection */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
                   <Icon icon="mdi:heart-pulse" className="mr-2" />
@@ -568,7 +605,6 @@ const VetMap = () => {
                 </div>
               </div>
 
-              {/* Additional Info */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
                   <Icon icon="mdi:note-text-outline" className="mr-2" />
@@ -584,7 +620,6 @@ const VetMap = () => {
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="bg-gray-50 px-5 py-4 flex justify-end">
               <button
                 onClick={() => setShowAppointmentModal(false)}
@@ -630,10 +665,9 @@ const VetMap = () => {
       </div>
 
       {/* Location Error Message */}
-      {/* Location Error Message */}
       {locationError && (
-        <div className="absolute bottom-20 right-4 z-[1000] bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded font-[Poppins]">
-          <span className="block sm:inline">{locationError}</span>
+        <div className="absolute bottom-20 right-4 z-[1000] bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {locationError}
         </div>
       )}
     </div>
