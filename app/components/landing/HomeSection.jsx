@@ -23,9 +23,9 @@ export default function HomeSection() {
         </p>
 
         {/* Get Started Button */}
-        <div className="mt-6 ml-95 flex justify-center md:justify-start transition ease-in-out delay-100 hover:translate-y-1 hover:scale-110">
+        <div className="mt-6 md:ml-70 ml-95 flex justify-center md:justify-start transition ease-in-out delay-100 hover:translate-y-1 hover:scale-110">
           <a
-            href="#"
+            href="signup"
             className="text-lg bg-blue-500 hover:bg-black text-white px-6 py-4 rounded shadow"
           >
             Get Started

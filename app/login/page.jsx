@@ -121,10 +121,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {isNavigating && <Loading />}
-      {/* Image on the left side - full height */}
-      <div className="sm:hidden md:block md:w-1/2  bg-blue-500 flex flex-col items-center justify-center rounded-b-full">
-        <div className="text-center p-8 mt-72">
-          <h1 className="text-5xl font-bold text-white ">
+      {/* Left side - hidden on mobile, shown on md screens and up */}
+      <div className="hidden md:flex md:w-1/2 bg-blue-500 flex-col items-center justify-center rounded-b-full">
+        <div className="text-center p-8 mt-20">
+          <h1 className="text-5xl font-bold text-white">
             Hi there, <span className="text-yellow-300">{displayedText}</span>
             <span
               className={`inline-block w-2 h-10 bg-yellow-300 ml-1 ${
@@ -141,38 +141,39 @@ export default function LoginPage() {
           width={700}
           height={700}
           alt="SymptoVet Logo"
-          className="w-130 h-auto ml-58"
+          className="w-130 h-auto ml-35"
+          priority
         />
       </div>
 
-      {/* Login Form - Right side */}
+      {/* Right side - full width on mobile, half width on md screens and up */}
       <div className="w-full md:w-1/2 bg-white relative">
-        {/* Logo and text in top-right corner */}
-        <div className="md:left-8 absolute top-8 left-14 flex items-center">
+        {/* Logo and text - adjusted positioning for mobile */}
+        <div className="absolute top-4 left-4 md:left-8 md:top-8 flex items-center">
           <Image
             src="/image/logo_blue.png"
             width={60}
             height={60}
             alt="SymptoVet Logo"
-            className="w-16 h-auto"
+            className="w-12 h-auto md:w-16"
           />
-          <span className="md:text-2xl text-3xl font-bold ml-2">
+          <span className="text-2xl md:text-3xl font-bold ml-2">
             <span className="text-black">Sympto</span>
             <span className="text-blue-500">Vet</span>
           </span>
         </div>
 
-        <div className="flex items-center justify-center h-full p-6 md:p-12">
-          <div className="w-full max-w-lg">
-            <div className="text-center mb-8">
-              <h3 className="lg:text-5xl sm:text-4xl md:text-4xl font-bold text-blue-600 mt-10">
+        {/* Login form container - adjusted padding for mobile */}
+        <div className="flex items-center justify-center h-full p-4 md:p-6">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-6 md:mb-8">
+              <h3 className="text-3xl md:text-4xl lg:text-5xl font-bold text-blue-600 mt-16 md:mt-20">
                 Welcome Back!
               </h3>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 mt-2 text-sm md:text-base">
                 Login to your account to continue
               </p>
             </div>
-
             <form className="flex flex-col mt-6" onSubmit={handleSubmit}>
               {/* Email Input */}
               <div className="relative mb-6">
@@ -234,12 +235,12 @@ export default function LoginPage() {
 
               {/* Remember Me Checkbox */}
               <div className="flex justify-between items-center mb-6">
-                <label className="flex items-center text-gray-700">
+                <label className="flex items-center">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={handleCheckboxChange}
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded mr-2"
+                    className="h-4 w-4 accent-blue-600 rounded mr-2"
                     aria-label="Remember Me"
                   />
                   Remember me

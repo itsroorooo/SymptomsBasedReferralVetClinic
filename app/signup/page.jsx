@@ -33,7 +33,7 @@ export default function SignupPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFormError("");
-    
+
     const formData = new FormData(event.target);
     const first_name = formData.get("firstName");
     const last_name = formData.get("lastName");
@@ -117,8 +117,8 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex">
       {/* Image on the left side - full height */}
-      <div className="sm:hidden md:block md:w-1/2 bg-blue-500 flex flex-col items-center justify-center rounded-b-full">
-        <div className="text-center p-8 mt-72">
+      <div className="sm:hidden md:block md:w-1/2 bg-blue-500 flex flex-col items-center justify-center rounded-b-full ">
+        <div className="text-center p-8 mt-72 md:mt-18">
           <p className="text-2xl text-white mt-4">
             Your account helps us care for them like you do
           </p>
@@ -128,7 +128,7 @@ export default function SignupPage() {
           width={1000}
           height={1000}
           alt="SymptoVet Logo"
-          className="w-130 h-auto ml-58"
+          className="w-130 h-auto ml-58 md:ml-35"
         />
       </div>
       {/* Sign Form - Right side */}
@@ -136,7 +136,7 @@ export default function SignupPage() {
         {/* Logo and text in top-right corner */}
         <div className="md:left-8 absolute top-8 left-14 flex items-center">
           <Image
-            src="/image/Logoblue.png"
+            src="/image/logo_blue.png"
             width={60}
             height={60}
             alt="SymptoVet Logo"
@@ -150,8 +150,8 @@ export default function SignupPage() {
 
         <div className="flex items-center justify-center h-full p-6 md:p-12">
           <div className="w-full max-w-lg">
-            <div className="text-center mb-8">
-              <h3 className="lg:text-5xl sm:text-4xl md:text-4xl font-bold text-blue-600 mt-10">
+            <div className="text-center">
+              <h3 className="lg:text-5xl sm:text-4xl md:text-4xl font-bold text-blue-600 mt-10 md:mt-8">
                 Create an Account
               </h3>
               <p className="text-gray-600 mt-2">
