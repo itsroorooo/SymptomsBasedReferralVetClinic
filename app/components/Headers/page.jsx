@@ -40,7 +40,7 @@ export default function HeaderUI() {
           {/* Logo */}
           <div className="flex items-center space-x-2">
             <Image
-              src="/image/Logoblue.png"
+              src="/image/logo_blue.png"
               width={56}
               height={56}
               alt="SymptoVet Logo"

@@ -1,4 +1,3 @@
-// layout.js
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
@@ -13,6 +12,11 @@ const poppins = Poppins({
 export const metadata = {
   title: "SymptoVet",
   description: "Symptom-Based Referral System for Domestic Pets",
+  icons: {
+    icon: "/image/logo_blue.png",
+    shortcut: "/image/logo_blue.png",
+    apple: "/apple-touch-icon.png", // Recommended 180x180px for Apple devices
+  },
 };
 
 export default function RootLayout({ children }) {

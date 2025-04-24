@@ -174,29 +174,35 @@ const ClinicEquipmentManager = ({ clinicId }) => {
   // Save edited equipment
   const handleSaveEdit = async () => {
     try {
-      const endpoint = currentEquipment.is_standard 
-        ? `/api/vetclinic/clinic-equipment/batch` 
-        : `/api/vetclinic/clinic-equipment/${currentEquipment.id}`;
-
-      const response = await fetch(endpoint, {
-        method: currentEquipment.is_standard ? "POST" : "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(currentEquipment.is_standard ? {
-          clinic_id: clinicId,
-          equipment_ids: selectedEquipment,
-          is_available: editForm.is_available
-        } : {
-          equipment_name: editForm.name,
-          equipment_description: editForm.description,
-          is_available: editForm.is_available
-        }),
-      });
-
+      let response;
+      
+      if (currentEquipment.is_standard) {
+        // For standard equipment, only update availability
+        response = await fetch(`/api/vetclinic/clinic-equipment/${currentEquipment.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            is_available: editForm.is_available
+          }),
+        });
+      } else {
+        // For custom equipment, update all fields
+        response = await fetch(`/api/vetclinic/clinic-equipment/${currentEquipment.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            equipment_name: editForm.name,
+            equipment_description: editForm.description,
+            is_available: editForm.is_available
+          }),
+        });
+      }
+  
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to update equipment");
       }
-
+  
       const updatedData = await response.json();
       
       setClinicEquipment(prev =>

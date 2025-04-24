@@ -6,7 +6,7 @@ export default function HomeSection() {
   return (
     <section
       id="home"
-      className="flex flex-col md:flex-row items-center max-w-full mx-auto px-6 md:px-16 pt-18 space-y-4 md:space-y-6 md:space-x-4 translate-y-10 transition-all duration-700 ease-out scroll-trigger"
+      className="bg-white flex flex-col md:flex-row items-center max-w-full mx-auto px-6 md:px-16 pt-18 space-y-4 md:space-y-6 md:space-x-4 translate-y-10 transition-all duration-700 ease-out scroll-trigger"
     >
       {/* Content */}
       <div className="md:w-1/2 lg:w-1/2 mt-40 text-center md:text-left">
@@ -23,9 +23,9 @@ export default function HomeSection() {
         </p>
 
         {/* Get Started Button */}
-        <div className="mt-6 flex justify-center transition ease-in-out delay-100 hover:translate-y-1 hover:scale-110">
+        <div className="mt-6 md:ml-70 ml-95 flex justify-center md:justify-start transition ease-in-out delay-100 hover:translate-y-1 hover:scale-110">
           <a
-            href="#"
+            href="signup"
             className="text-lg bg-blue-500 hover:bg-black text-white px-6 py-4 rounded shadow"
           >
             Get Started
@@ -33,8 +33,8 @@ export default function HomeSection() {
         </div>
       </div>
 
-      {/* Image */}
-      <div className="md:w-1/2 flex justify-center items-center px-6 md:px-12 pt-8 translate-y-10 transition-all duration-700 ease-out scroll-trigger">
+      {/* Image - hidden on small screens, visible from md breakpoint up */}
+      <div className="hidden md:block md:w-1/2 flex justify-center items-center px-6 md:px-12 pt-8 translate-y-10 transition-all duration-700 ease-out scroll-trigger">
         <Image
           src="/image/panda.png"
           width={900}

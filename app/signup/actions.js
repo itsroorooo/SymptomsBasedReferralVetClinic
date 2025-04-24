@@ -2,36 +2,31 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
-import bcrypt from "bcryptjs";
+import { createSupabaseServerClient } from "@/utils/supabase/server";
 
 export async function signup(formData) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   if (!supabase?.auth) {
-    return { error: "auth", message: "Authentication service unavailable" };
+    return { 
+      success: false,
+      error: "auth", 
+      message: "Authentication service unavailable" 
+    };
   }
 
-  // Extract form data
   const email = formData.get("email");
   const password = formData.get("password");
   const first_name = formData.get("firstName");
   const last_name = formData.get("lastName");
 
-  // Wrap only the operations that can fail
   try {
-    // 🔒 Hash password manually
-    const passwordHash = await bcrypt.hash(password, 10);
-
     // 1. Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: {
-          first_name,
-          last_name,
-        },
+        data: { first_name, last_name },
         emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`,
       },
     });
@@ -46,10 +41,7 @@ export async function signup(formData) {
       first_name,
       last_name,
       role: "pet_owner",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      is_active: false, // Mark inactive until verified
-      password_hash: passwordHash,
+      is_active: false,
     });
 
     if (userError) throw userError;
@@ -62,35 +54,47 @@ export async function signup(formData) {
         first_name,
         last_name,
         profile_picture_url: "/image/default-avatar.jpg",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       });
 
     if (profileError) throw profileError;
 
     revalidatePath("/", "layout");
-
-    // ✅ Redirect only after successful signup
-    redirect(`/verify-email?email=${encodeURIComponent(email)}`);
+    
+    return { 
+      success: true,
+      email,
+      redirectUrl: `/verify-email?email=${encodeURIComponent(email)}`
+    };
+    
   } catch (error) {
     console.error("Signup error:", error);
 
-    if (
-      error.message.includes("User already registered") ||
-      error.code === "23505"
-    ) {
+    // Cleanup partial user if exists
+    if (email) {
+      const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
+      
+      if (user?.id) {
+        await supabase.from('users').delete().eq('id', user.id);
+        await supabase.from('pet_owner_profiles').delete().eq('id', user.id);
+      }
+    }
+
+    if (error.message.includes("User already registered") || error.code === "23505") {
       return {
+        success: false,
         error: "email",
-        message: "Email already in use",
+        message: "Email already in use"
       };
     }
 
     return {
+      success: false,
       error: "general",
-      message: "Account creation failed. Please try again.",
+      message: error.message || "Account creation failed. Please try again."
     };
   }
-
-  // ✅ Only call redirect after the try block
-  redirect(`/verify-email?email=${encodeURIComponent(email)}`);
 }
