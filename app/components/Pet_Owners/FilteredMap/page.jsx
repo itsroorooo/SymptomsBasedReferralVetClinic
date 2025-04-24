@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import VetMap from "../Map/page"; // Reuse your existing map component
+import VetMap from "../Map/page"; 
 
 const FilteredMap = () => {
   const [clinics, setClinics] = useState([]);
