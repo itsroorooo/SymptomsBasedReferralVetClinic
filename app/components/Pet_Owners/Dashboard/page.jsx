@@ -12,7 +12,7 @@ import AllMap from "../Map/DisplayAllMap";
 import { useRouter } from "next/navigation";
 import ProfilePage from "../profile/page";
 import SettingsPage from "../settings/page";
-import AppointmentPage from "../Appointments/page";
+import ClinicAppointmentsPage from "../Appointments/page";
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -312,7 +312,7 @@ const Dashboard = () => {
           <main className="flex-1 overflow-auto bg-gray-100">
             {activeComponent === "Dashboard" && <div>Home Content</div>}
             {activeComponent === "pet" && <PetsPage />}
-            {activeComponent === "appointment" && <AppointmentPage />}
+            {activeComponent === "appointment" && <ClinicAppointmentsPage />}
             {activeComponent === "map" && <AllMap />}
             {activeComponent === "symptoms" && <SymptomsList />}
             {activeComponent === "profile" && (
