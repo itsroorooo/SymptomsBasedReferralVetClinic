@@ -21,7 +21,7 @@ const VetClinicDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [clinicId, setClinicId] = useState(null);
-  
+
   const supabase = createClient();
   const router = useRouter();
 
@@ -73,7 +73,10 @@ const VetClinicDashboard = () => {
     const checkSession = async () => {
       try {
         setLoading(true);
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
 
         if (error) {
           throw error;
@@ -151,8 +154,15 @@ const VetClinicDashboard = () => {
     return (
       <div className="font-[Poppins] h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-md">
+<<<<<<< Updated upstream
           <h2 className="text-xl font-bold text-red-500 mb-4">Authentication Error</h2>
           <p className="mb-4">{authError}</p>
+=======
+          <h2 className="text-xl font-bold text-red-500 mb-4">
+            Session Expired
+          </h2>
+          <p className="mb-4">Your session has expired. Please log in again.</p>
+>>>>>>> Stashed changes
           <button
             onClick={() => router.push("/login")}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
@@ -168,7 +178,9 @@ const VetClinicDashboard = () => {
     return (
       <div className="font-[Poppins] h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-md">
-          <h2 className="text-xl font-bold text-red-500 mb-4">User Not Found</h2>
+          <h2 className="text-xl font-bold text-red-500 mb-4">
+            User Not Found
+          </h2>
           <p className="mb-4">Unable to load user profile.</p>
           <button
             onClick={() => router.push("/login")}
@@ -279,15 +291,21 @@ const VetClinicDashboard = () => {
                   {isDropdownOpen && (
                     <div className="absolute right-0 mt-2 bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-64">
                       <div className="px-4 py-3 text-sm text-gray-900">
-                        <div className="font-medium">{`${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`}</div>
-                        <div className="truncate">{userProfile?.email || ''}</div>
+                        <div className="font-medium">{`${
+                          userProfile?.first_name || ""
+                        } ${userProfile?.last_name || ""}`}</div>
+                        <div className="truncate">
+                          {userProfile?.email || ""}
+                        </div>
                       </div>
 
                       <ul className="py-2 text-sm text-gray-700">
                         <li>
                           <button
                             onClick={() => {
-                              setActiveComponent(clinicProfile ? "ClinicProfile" : "UserProfile");
+                              setActiveComponent(
+                                clinicProfile ? "ClinicProfile" : "UserProfile"
+                              );
                               setIsDropdownOpen(false);
                             }}
                             className="block w-full text-left px-4 py-2 hover:bg-gray-100"
@@ -340,10 +358,18 @@ const VetClinicDashboard = () => {
           <main className="flex-1 overflow-y-auto bg-gray-50">
             {activeComponent === "VetDashboard" && <HomePage />}
             {activeComponent === "Patients" && <PatientList />}
-            {activeComponent === "Equipments" && <ClinicEquipmentManager clinicId={clinicId} />}
-            {activeComponent === "Appointments" && <RealTimeAppointmentAlerts />}
-            {activeComponent === "Schedule" && clinicId && <ManageSchedule clinicId={clinicId} />}
-            {activeComponent === "ClinicProfile" && clinicId && <ClinicProfile clinicId={clinicId} />}
+            {activeComponent === "Equipments" && (
+              <ClinicEquipmentManager clinicId={clinicId} />
+            )}
+            {activeComponent === "Appointments" && (
+              <RealTimeAppointmentAlerts />
+            )}
+            {activeComponent === "Schedule" && clinicId && (
+              <ManageSchedule clinicId={clinicId} />
+            )}
+            {activeComponent === "ClinicProfile" && clinicId && (
+              <ClinicProfile clinicId={clinicId} />
+            )}
           </main>
         </div>
       </div>

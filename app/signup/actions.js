@@ -8,10 +8,10 @@ export async function signup(formData) {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase?.auth) {
-    return { 
+    return {
       success: false,
-      error: "auth", 
-      message: "Authentication service unavailable" 
+      error: "auth",
+      message: "Authentication service unavailable",
     };
   }
 
@@ -21,7 +21,14 @@ export async function signup(formData) {
   const last_name = formData.get("lastName");
 
   try {
-    // 1. Create auth user
+    // 1. Check if users table is empty to determine role
+    const { count: userCount } = await supabase
+      .from("users")
+      .select("*", { count: "exact", head: true });
+
+    const role = userCount === 0 ? "admin" : "pet_owner";
+
+    // 2. Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -34,19 +41,19 @@ export async function signup(formData) {
     if (authError) throw authError;
     if (!authData.user) throw new Error("User creation failed");
 
-    // 2. Insert into users table
+    // 3. Insert into users table with determined role
     const { error: userError } = await supabase.from("users").insert({
       id: authData.user.id,
       email,
       first_name,
       last_name,
-      role: "pet_owner",
+      role,
       is_active: false,
     });
 
     if (userError) throw userError;
 
-    // 3. Create pet owner profile
+    // 4. Create pet owner profile (or admin profile if needed)
     const { error: profileError } = await supabase
       .from("pet_owner_profiles")
       .insert({
@@ -59,42 +66,44 @@ export async function signup(formData) {
     if (profileError) throw profileError;
 
     revalidatePath("/", "layout");
-    
-    return { 
+
+    return {
       success: true,
       email,
-      redirectUrl: `/verify-email?email=${encodeURIComponent(email)}`
+      redirectUrl: `/verify-email?email=${encodeURIComponent(email)}`,
     };
-    
   } catch (error) {
     console.error("Signup error:", error);
 
     // Cleanup partial user if exists
     if (email) {
       const { data: user } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
+        .from("users")
+        .select("id")
+        .eq("email", email)
         .single();
-      
+
       if (user?.id) {
-        await supabase.from('users').delete().eq('id', user.id);
-        await supabase.from('pet_owner_profiles').delete().eq('id', user.id);
+        await supabase.from("users").delete().eq("id", user.id);
+        await supabase.from("pet_owner_profiles").delete().eq("id", user.id);
       }
     }
 
-    if (error.message.includes("User already registered") || error.code === "23505") {
+    if (
+      error.message.includes("User already registered") ||
+      error.code === "23505"
+    ) {
       return {
         success: false,
         error: "email",
-        message: "Email already in use"
+        message: "Email already in use",
       };
     }
 
     return {
       success: false,
       error: "general",
-      message: error.message || "Account creation failed. Please try again."
+      message: error.message || "Account creation failed. Please try again.",
     };
   }
 }
