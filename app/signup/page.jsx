@@ -5,8 +5,12 @@ import Image from "next/image";
 import { signup } from "./actions";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
+import {
+  GoogleReCaptchaProvider,
+  useGoogleReCaptcha,
+} from "react-google-recaptcha-v3";
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -15,6 +19,7 @@ export default function SignupPage() {
   const [firstNameError, setFirstNameError] = useState("");
   const [lastNameError, setLastNameError] = useState("");
   const [formError, setFormError] = useState("");
+  const { executeRecaptcha } = useGoogleReCaptcha();
 
   const handleOAuthSignup = async (provider) => {
     setLoading(true);
@@ -33,6 +38,12 @@ export default function SignupPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFormError("");
+
+    // Check if reCAPTCHA is available
+    if (!executeRecaptcha) {
+      setFormError("Security verification failed. Please refresh the page.");
+      return;
+    }
 
     const formData = new FormData(event.target);
     const first_name = formData.get("firstName");
@@ -86,12 +97,16 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
+      // Get reCAPTCHA token
+      const token = await executeRecaptcha("signup");
+
       // Create new FormData without confirmPassword
       const submissionData = new FormData();
       submissionData.append("firstName", first_name);
       submissionData.append("lastName", last_name);
       submissionData.append("email", email);
       submissionData.append("password", password);
+      submissionData.append("recaptchaToken", token);
 
       const result = await signup(submissionData);
 
@@ -131,18 +146,18 @@ export default function SignupPage() {
           className="w-130 h-auto lg:ml-20"
         />
       </div>
-      
+
       {/* Sign Form - Takes full width on small screens, half on larger */}
       <div className="w-full lg:w-1/2 bg-white relative">
         {/* Logo and text in top-right corner */}
-         <div className="absolute top-4 left-4 md:left-8 md:top-8 flex items-center">
-                  <Image
-                    src="/image/logo_blue.png"
-                    width={60}
-                    height={60}
-                    alt="SymptoVet Logo"
-                    className="w-12 h-auto md:w-16"
-                  />
+        <div className="absolute top-4 left-4 md:left-8 md:top-8 flex items-center">
+          <Image
+            src="/image/logo_blue.png"
+            width={60}
+            height={60}
+            alt="SymptoVet Logo"
+            className="w-12 h-auto md:w-16"
+          />
           <span className="text-xl lg:text-2xl font-bold ml-2">
             <span className="text-black">Sympto</span>
             <span className="text-blue-500">Vet</span>
@@ -232,7 +247,7 @@ export default function SignupPage() {
                   required
                   className={`peer w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 ${
                     emailError ? "border-red-500" : ""
-                    }`}
+                  }`}
                   placeholder=" "
                   aria-label="Email Address"
                 />
@@ -369,5 +384,20 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <GoogleReCaptchaProvider
+      reCaptchaKey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
+      scriptProps={{
+        async: true,
+        defer: true,
+        appendTo: "body",
+      }}
+    >
+      <SignupForm />
+    </GoogleReCaptchaProvider>
   );
 }

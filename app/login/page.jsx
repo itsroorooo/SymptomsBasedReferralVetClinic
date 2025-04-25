@@ -7,14 +7,19 @@ import { login } from "./actions";
 import { createClient } from "@/utils/supabase/client";
 import Loading from "../components/Loading";
 import { Eye, EyeOff } from "lucide-react";
+import {
+  GoogleReCaptchaProvider,
+  useGoogleReCaptcha,
+} from "react-google-recaptcha-v3";
 
-export default function LoginPage() {
+function LoginForm() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { executeRecaptcha } = useGoogleReCaptcha();
 
   // Typing animation states
   const [displayedText, setDisplayedText] = useState("");
@@ -99,23 +104,45 @@ export default function LoginPage() {
     setPasswordError("");
     setLoading(true);
 
-    const formData = new FormData(event.currentTarget);
-    const result = await login(formData);
-
-    if (result?.error) {
-      if (result.error.field === "email") {
-        setEmailError(result.error.message);
-      } else if (result.error.field === "password") {
-        setPasswordError(result.error.message);
-      } else {
-        setPasswordError(result.error.message);
-      }
-    } else if (result?.success) {
-      window.location.href = "/user"; // Client-side redirect
-      setIsNavigating(true);
+    if (!executeRecaptcha) {
+      console.error("reCAPTCHA not available");
+      setPasswordError("Security check failed. Please try again.");
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    try {
+      const token = await executeRecaptcha("login");
+
+      // Get the form element more reliably
+      const formElement = event.target.closest("form");
+      if (!formElement) {
+        throw new Error("Form element not found");
+      }
+
+      const formData = new FormData(formElement);
+      formData.append("recaptchaToken", token);
+
+      const result = await login(formData);
+
+      if (result?.error) {
+        if (result.error.field === "email") {
+          setEmailError(result.error.message);
+        } else if (result.error.field === "password") {
+          setPasswordError(result.error.message);
+        } else {
+          setPasswordError(result.error.message);
+        }
+      } else if (result?.success) {
+        window.location.href = "/user"; // Client-side redirect
+        setIsNavigating(true);
+      }
+    } catch (error) {
+      console.error("Form submission error:", error);
+      setPasswordError(error.message || "Submission failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -320,5 +347,21 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <GoogleReCaptchaProvider
+      reCaptchaKey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
+      scriptProps={{
+        async: false,
+        defer: false,
+        appendTo: "head",
+        nonce: undefined,
+      }}
+    >
+      <LoginForm />
+    </GoogleReCaptchaProvider>
   );
 }

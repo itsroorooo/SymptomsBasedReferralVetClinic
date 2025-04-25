@@ -82,9 +82,8 @@ const VetClinicDashboard = () => {
           throw error;
         }
 
-        if (!session?.user) {
-          router.push("/login");
-          return;
+        if (!session) {
+          throw new Error("No active session");
         }
 
         await fetchUserData(session.user.id);
@@ -101,19 +100,7 @@ const VetClinicDashboard = () => {
       }
     };
 
-    // Check session initially
     checkSession();
-
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_OUT") {
-          router.push("/login");
-        } else if (session?.user) {
-          await fetchUserData(session.user.id);
-        }
-      }
-    );
 
     const handleResize = () => {
       if (mounted) {
@@ -128,7 +115,6 @@ const VetClinicDashboard = () => {
     return () => {
       mounted = false;
       window.removeEventListener("resize", handleResize);
-      subscription?.unsubscribe();
     };
   }, [supabase, router]);
 
@@ -154,15 +140,10 @@ const VetClinicDashboard = () => {
     return (
       <div className="font-[Poppins] h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-md">
-<<<<<<< Updated upstream
-          <h2 className="text-xl font-bold text-red-500 mb-4">Authentication Error</h2>
-          <p className="mb-4">{authError}</p>
-=======
           <h2 className="text-xl font-bold text-red-500 mb-4">
             Session Expired
           </h2>
           <p className="mb-4">Your session has expired. Please log in again.</p>
->>>>>>> Stashed changes
           <button
             onClick={() => router.push("/login")}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
