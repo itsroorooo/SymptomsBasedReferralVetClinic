@@ -29,7 +29,7 @@ export async function updateSession(request) {
     }
   );
 
-  // **Ensure user authentication**
+  // *Ensure user authentication*
   const {
     data: { user },
   } = await supabase.auth.getUser();

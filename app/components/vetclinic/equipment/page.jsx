@@ -24,6 +24,7 @@ const ClinicEquipmentManager = ({ clinicId }) => {
     description: '',
     is_available: false
   });
+  const [isProcessing, setIsProcessing] = useState(false); // Add processing state
 
   // Get selected equipment IDs
   const selectedEquipment = clinicEquipment
@@ -62,6 +63,9 @@ const ClinicEquipmentManager = ({ clinicId }) => {
 
   // Equipment selection toggle
   const handleEquipmentToggle = async (id) => {
+    if (isProcessing) return; // Prevent multiple clicks
+    
+    setIsProcessing(true);
     const isSelected = selectedEquipment.includes(id);
     const newSelected = isSelected 
       ? selectedEquipment.filter(item => item !== id)
@@ -85,13 +89,17 @@ const ClinicEquipmentManager = ({ clinicId }) => {
       // Update local state
       setClinicEquipment(prev => {
         if (isSelected) {
-          return prev.filter(item => item.equipment_id !== id);
+          return prev.filter(item => item.equipment_id !== id || !item.is_standard);
         } else {
+          // Check if already exists to prevent duplicates
+          const exists = prev.some(item => item.equipment_id === id && item.is_standard);
+          if (exists) return prev;
+          
           const equipment = equipmentList.find(e => e.id === id);
           return [
             ...prev,
             {
-              id: `temp-${id}`,
+              id: `temp-${Date.now()}-${id}`, // More unique temp ID
               clinic_id: clinicId,
               equipment_id: id,
               equipment_name: equipment.name,
@@ -107,6 +115,8 @@ const ClinicEquipmentManager = ({ clinicId }) => {
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
       setApiError(err.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -179,6 +189,7 @@ const ClinicEquipmentManager = ({ clinicId }) => {
     try {
       const url = `/api/vetclinic/clinic-equipment/${currentEquipment.id}`;
       
+      // For standard equipment, only update availability
       const body = currentEquipment.is_standard
         ? { is_available: editForm.is_available }
         : {
@@ -292,29 +303,36 @@ const ClinicEquipmentManager = ({ clinicId }) => {
         </label>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-3 border-2 border-gray-200 rounded-xl scrollbar-thin scrollbar-thumb-blue-300 scrollbar-track-blue-50">
-          {equipmentList.map((equipment) => (
-            <div
-              key={equipment.id}
-              onClick={() => handleEquipmentToggle(equipment.id)}
-              className={`p-4 border-2 rounded-xl cursor-pointer flex items-start justify-between transition-all ${
-                selectedEquipment.includes(equipment.id)
-                  ? "bg-blue-50 border-blue-300 shadow-md"
-                  : "bg-white border-gray-200 hover:border-blue-200"
-              }`}
-            >
-              <div className="flex-1">
-                <p className="font-semibold text-gray-800">{equipment.name}</p>
-                <p className="text-sm text-gray-600 mt-1">
-                  {equipment.description || "No description available"}
-                </p>
+          {equipmentList.map((equipment) => {
+            const isSelected = selectedEquipment.includes(equipment.id);
+            const isProcessingItem = isProcessing && isProcessing === equipment.id;
+            
+            return (
+              <div
+                key={equipment.id}
+                onClick={() => !isProcessingItem && handleEquipmentToggle(equipment.id)}
+                className={`p-4 border-2 rounded-xl cursor-pointer flex items-start justify-between transition-all ${
+                  isSelected
+                    ? "bg-blue-50 border-blue-300 shadow-md"
+                    : "bg-white border-gray-200 hover:border-blue-200"
+                } ${
+                  isProcessingItem ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-800">{equipment.name}</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {equipment.description || "No description available"}
+                  </p>
+                </div>
+                {isSelected ? (
+                  <CheckCircle className="text-blue-600 ml-2 flex-shrink-0 h-5 w-5" />
+                ) : (
+                  <Circle className="text-gray-400 ml-2 flex-shrink-0 h-5 w-5" />
+                )}
               </div>
-              {selectedEquipment.includes(equipment.id) ? (
-                <CheckCircle className="text-blue-600 ml-2 flex-shrink-0 h-5 w-5" />
-              ) : (
-                <Circle className="text-gray-400 ml-2 flex-shrink-0 h-5 w-5" />
-              )}
-            </div>
-          ))}
+            );
+          })}
 
           {/* Add Custom Equipment */}
           {!isAddingCustom ? (
@@ -453,7 +471,7 @@ const ClinicEquipmentManager = ({ clinicId }) => {
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div 
-            className="absolute inset-0 bg-opacity-70 backdrop-blur-sm"
+            className="absolute inset-0 bg-black bg-opacity-70 backdrop-blur-sm"
             onClick={() => setIsEditModalOpen(false)}
           ></div>
           <div 
@@ -526,7 +544,7 @@ const ClinicEquipmentManager = ({ clinicId }) => {
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div 
-            className="absolute inset-0 bg-opacity-70 backdrop-blur-sm"
+            className="absolute inset-0 bg-black bg-opacity-70 backdrop-blur-sm"
             onClick={() => setIsDeleteModalOpen(false)}
           ></div>
           <div 

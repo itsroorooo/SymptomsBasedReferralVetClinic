@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useProfileActions } from "./actions";
 
 const ProfilePage = ({ onPhotoChange }) => {
   const [profile, setProfile] = useState({

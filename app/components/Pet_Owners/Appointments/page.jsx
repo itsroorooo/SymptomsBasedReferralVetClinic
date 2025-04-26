@@ -147,7 +147,7 @@ const AppointmentPage = () => {
     if (loading.appointments) {
       return (
         <div className="flex justify-center items-center min-h-[200px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       );
     }
@@ -175,7 +175,7 @@ const AppointmentPage = () => {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className={`flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full ${appointment.is_ai_booking ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                  <div className={`flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full ${appointment.is_ai_booking ? 'bg-blue-100 text-blue-600' : 'bg-blue-100 text-blue-600'}`}>
                     {appointment.is_ai_booking ? (
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
@@ -196,7 +196,7 @@ const AppointmentPage = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   {appointment.is_ai_booking && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       <svg xmlns="http://www.w3.org/2000/svg" className="mr-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                       </svg>
@@ -222,7 +222,7 @@ const AppointmentPage = () => {
               <div className="px-4 pb-4">
                 {appointment.is_ai_booking && (
                   <div className="mb-4">
-                    <span className="inline-block bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                    <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
                       AI-Assisted Booking
                     </span>
                   </div>
@@ -390,7 +390,7 @@ const AppointmentPage = () => {
   if (loading.page) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -414,7 +414,7 @@ const AppointmentPage = () => {
         </div>
         <button 
           onClick={fetchUserAndData}
-          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Retry
         </button>
@@ -431,40 +431,40 @@ const AppointmentPage = () => {
   }
 
   return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8 font-['Poppins']">
     <>
       <Head>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       </Head>
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-['Poppins']">
+    
         
         <div className="mb-6">
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => handleTabChange(0)}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${tabValue === 0 ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${tabValue === 0 ? 'border-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className={`mr-2 h-5 w-5 ${tabValue === 0 ? 'text-purple-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className={`mr-2 h-5 w-5 ${tabValue === 0 ? 'text-blue-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
                 Regular Bookings
                 {regularAppointments.length > 0 && (
-                  <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 0 ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                  <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
                     {regularAppointments.length}
                   </span>
                 )}
               </button>
               <button
                 onClick={() => handleTabChange(1)}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${tabValue === 1 ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${tabValue === 1 ? 'border-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className={`mr-2 h-5 w-5 ${tabValue === 1 ? 'text-purple-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className={`mr-2 h-5 w-5 ${tabValue === 1 ? 'text-blue-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                 </svg>
                 AI-Assisted
                 {aiAppointments.length > 0 && (
-                  <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 1 ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                  <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 1 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
                     {aiAppointments.length}
                   </span>
                 )}
@@ -474,8 +474,8 @@ const AppointmentPage = () => {
         </div>
         
         {tabValue === 0 ? renderAppointmentList(regularAppointments) : renderAppointmentList(aiAppointments)}
-      </div>
     </>
+    </div>
   );
 };
 
