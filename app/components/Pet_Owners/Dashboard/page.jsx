@@ -205,7 +205,7 @@ const Dashboard = () => {
         transition-all duration-300 ease-in-out`}
         >
           {/* Header */}
-          <header className="shadow-md py-2 px-4 md:px-10 bg-white">
+          <header className="shadow-md py-4 px-4 md:px-10 bg-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <h1 className="text-2xl font-bold text-blue-500">

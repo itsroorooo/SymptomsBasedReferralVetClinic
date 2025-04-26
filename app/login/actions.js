@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/utils/supabase/server";
-import bcrypt from "bcryptjs";
 
 export async function login(formData) {
   const supabase = await createSupabaseServerClient();
@@ -16,26 +15,7 @@ export async function login(formData) {
   if (!password)
     return { error: { message: "Password is required", field: "password" } };
 
-  // Veterinary login
-  const { data: vetUser } = await supabase
-    .from("users")
-    .select("id, role, password_hash")
-    .eq("email", email)
-    .eq("role", "veterinary")
-    .maybeSingle();
-
-  if (vetUser) {
-    const isMatch = await bcrypt.compare(password, vetUser.password_hash);
-    if (!isMatch) {
-      return { error: { message: "Incorrect password", field: "password" } };
-    }
-
-    // ✅ This throws a redirect signal — no need to return anything
-    revalidatePath("/", "layout");
-    redirect("/clinic");
-  }
-
-  // Supabase Auth login (pet_owner & admin)
+  // Step 1: Sign in using Supabase Auth
   const { data: authData, error: authError } =
     await supabase.auth.signInWithPassword({
       email,
@@ -43,25 +23,40 @@ export async function login(formData) {
     });
 
   if (authError || !authData?.user) {
-    return { error: { message: "Incorrect credentials", field: "general" } };
+    return {
+      error: { message: "Incorrect email or password", field: "general" },
+    };
   }
 
-  const { data: roleProfile } = await supabase
+  const userId = authData.user.id;
+
+  // Step 2: Fetch user role from users table
+  const { data: roleData, error: roleError } = await supabase
     .from("users")
     .select("role")
-    .eq("id", authData.user.id)
+    .eq("id", userId)
     .single();
 
-  const role = roleProfile?.role;
+  if (roleError || !roleData?.role) {
+    return {
+      error: {
+        message: "User role not found. Contact admin.",
+        field: "general",
+      },
+    };
+  }
 
+  const role = roleData.role;
+
+  // Step 3: Redirect based on role
   revalidatePath("/", "layout");
 
-  if (role === "pet_owner") {
-    redirect("/user");
-  } else if (role === "admin") {
+  if (role === "admin") {
     redirect("/admin");
   } else if (role === "veterinary") {
-    redirect("/clinic"); 
+    redirect("/clinic");
+  } else if (role === "pet_owner") {
+    redirect("/user");
   } else {
     redirect("/");
   }

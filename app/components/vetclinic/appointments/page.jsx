@@ -226,7 +226,7 @@ const ClinicAppointmentsPage = () => {
   if (loading.page) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -250,7 +250,7 @@ const ClinicAppointmentsPage = () => {
         </div>
         <button 
           onClick={fetchUserAndData}
-          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Retry
         </button>
@@ -273,62 +273,51 @@ const ClinicAppointmentsPage = () => {
       </Head>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-['Poppins']">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-          <div className="mt-4 md:mt-0">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Last updated: {new Date().toLocaleTimeString()}
-            </span>
-          </div>
-        </div>
-        
         <div className="mb-6">
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8 overflow-x-auto">
               <button
                 onClick={() => handleTabChange('all')}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${tabValue === 'all' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${tabValue === 'all' ? 'border-blue-500 ' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 All Appointments
-                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 'all' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 'all' ? 'bg-blue-100' : 'bg-gray-100 text-gray-800'}`}>
                   {appointments.length}
                 </span>
               </button>
               <button
                 onClick={() => handleTabChange('pending')}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${tabValue === 'pending' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${tabValue === 'pending' ? 'border-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 Pending
-                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 'pending' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 'pending' ? 'bg-blue-100 ' : 'bg-gray-100 text-gray-800'}`}>
                   {appointments.filter(a => a.status === 'pending').length}
                 </span>
               </button>
               <button
                 onClick={() => handleTabChange('confirmed')}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${tabValue === 'confirmed' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${tabValue === 'confirmed' ? 'border-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 Confirmed
-                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 'confirmed' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 'confirmed' ? 'bg-blue-100 ' : 'bg-gray-100 text-gray-800'}`}>
                   {appointments.filter(a => a.status === 'confirmed').length}
                 </span>
               </button>
               <button
                 onClick={() => handleTabChange('declined')}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${tabValue === 'declined' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${tabValue === 'declined' ? 'border-blue-500 ' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 Declined
-                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 'declined' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 'declined' ? 'bg-blue-100 ' : 'bg-gray-100 text-gray-800'}`}>
                   {appointments.filter(a => a.status === 'declined').length}
                 </span>
               </button>
               <button
                 onClick={() => handleTabChange('completed')}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${tabValue === 'completed' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${tabValue === 'completed' ? 'border-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 Completed
-                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 'completed' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 'completed' ? 'bg-blue-100' : 'bg-gray-100 text-gray-800'}`}>
                   {appointments.filter(a => a.status === 'completed').length}
                 </span>
               </button>
@@ -338,7 +327,7 @@ const ClinicAppointmentsPage = () => {
         
         {loading.appointments ? (
           <div className="flex justify-center items-center min-h-[200px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
         ) : filteredAppointments.length === 0 ? (
           <div className="p-6 text-center bg-white rounded-lg shadow">
@@ -358,7 +347,7 @@ const ClinicAppointmentsPage = () => {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <div className={`flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full ${appointment.is_ai_booking ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                      <div className={`flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full ${appointment.is_ai_booking ? 'bg-blue-100' : 'bg-blue-100 text-blue-600'}`}>
                         {appointment.is_ai_booking ? (
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
@@ -563,14 +552,14 @@ const ClinicAppointmentsPage = () => {
           <div className="border-t border-gray-200 pt-4 mt-4 flex justify-end space-x-3">
             <button
               onClick={() => handleOpenDeclineDialog(appointment)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               disabled={isProcessing}
             >
               {isProcessing ? 'Processing...' : 'Decline'}
             </button>
             <button
               onClick={() => handleUpdateAppointmentStatus(appointment.id, 'confirmed')}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               disabled={isProcessing}
             >
               {isProcessing ? 'Processing...' : 'Confirm Appointment'}

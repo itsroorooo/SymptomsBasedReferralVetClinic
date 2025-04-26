@@ -163,6 +163,7 @@ export default function PetsPage() {
   };
 
   return (
+  <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
     <div className="m-10 max-w-7xl mx-auto ml-10 mr-10">
       <div className="flex justify-between items-center m-4">
         <h1 className="text-2xl font-bold text-gray-800"></h1>
@@ -453,5 +454,6 @@ export default function PetsPage() {
         </div>
       )}
     </div>
+  </div>
   );
 }
