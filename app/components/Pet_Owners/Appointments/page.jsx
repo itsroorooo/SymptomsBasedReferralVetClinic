@@ -83,6 +83,7 @@ const AppointmentPage = () => {
             ai_diagnoses (
               id,
               possible_condition,
+              explanation,
               created_at
             )
           )
@@ -339,11 +340,6 @@ const AppointmentPage = () => {
                         Consultation Details
                       </h4>
                       
-                      <div className="mb-4">
-                        <p className="text-sm text-gray-500">Additional Information</p>
-                        <p className="font-medium">{appointment.consultation.additional_info || 'None provided'}</p>
-                      </div>
-                      
                       {appointment.consultation.consultation_symptoms?.length > 0 && (
                         <div className="mb-4">
                           <p className="text-sm text-gray-500 mb-2">Reported Symptoms</p>
@@ -367,12 +363,9 @@ const AppointmentPage = () => {
                             {appointment.consultation.ai_diagnoses.map((diagnosis) => (
                               <div key={diagnosis.id} className="bg-gray-50 p-3 rounded-lg">
                                 <p className="font-medium">
-                                  {typeof diagnosis.possible_diagnosis === 'object' 
-                                    ? diagnosis.possible_diagnosis.diagnosis || 'Unknown diagnosis'
-                                    : diagnosis.possible_diagnosis || 'Unknown diagnosis'}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Generated on {new Date(diagnosis.created_at).toLocaleString()}
+                                  {typeof diagnosis.possible_condition === 'object' 
+                                    ? diagnosis.possible_condition.diagnosis || 'Unknown diagnosis'
+                                    : diagnosis.possible_condition || 'Unknown diagnosis'}
                                 </p>
                               </div>
                             ))}

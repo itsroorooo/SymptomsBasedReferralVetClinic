@@ -2,12 +2,12 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, CheckCircle, Circle, TestTube2, Hospital } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function SymptomPage() {
   const router = useRouter();
   const [symptoms, setSymptoms] = useState([]);
-  const [pets, setPets] = useState([]); // Added pets state
+  const [pets, setPets] = useState([]);
   const [selectedPetId, setSelectedPetId] = useState("");
   const [selectedPetType, setSelectedPetType] = useState("");
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
@@ -15,7 +15,6 @@ export default function SymptomPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [diagnosisResult, setDiagnosisResult] = useState(null);
-  const [recommendedClinics, setRecommendedClinics] = useState([]);
   const [showResults, setShowResults] = useState(false);
 
   const supabase = createClient();
@@ -24,11 +23,9 @@ export default function SymptomPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Get current user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError || !user) throw new Error("User not authenticated");
 
-        // Fetch user's pets and symptoms
         const [{ data: petsData, error: petsError }, 
                { data: symptomsData, error: symptomsError }] = await Promise.all([
           supabase.from("pets").select("*").eq("owner_id", user.id),
@@ -52,15 +49,6 @@ export default function SymptomPage() {
     fetchData();
   }, [supabase]);
 
-  useEffect(() => {
-    if (showResults && diagnosisResult) {
-      const query = `diagnosis=${encodeURIComponent(diagnosisResult.possible_condition)}&equipment=${encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))}`;
-      const url = `/components/Pet_Owners/FilteredMap?diagnosis=${encodeURIComponent(diagnosisResult.possible_condition)}&equipment=${encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))}`;
-router.push(url);
-    }
-  }, [showResults, diagnosisResult, router]);
-
-  // Handle pet selection change
   const handlePetChange = (e) => {
     const petId = e.target.value;
     setSelectedPetId(petId);
@@ -70,7 +58,6 @@ router.push(url);
     }
   };
 
-  // Handle symptom selection
   const handleSymptomToggle = (symptomId) => {
     setSelectedSymptoms(prev => 
       prev.includes(symptomId)
@@ -84,22 +71,12 @@ router.push(url);
     setIsSubmitting(true);
   
     try {
-      // Validate inputs with enhanced checks
       if (!selectedPetId) throw new Error("Please select a pet");
       if (selectedSymptoms.length === 0) throw new Error("Please select at least one symptom");
       
       const selectedPet = pets.find(pet => pet.id === selectedPetId);
       if (!selectedPet) throw new Error("Invalid pet selection");
 
-  
-      // Validate symptoms exist in database
-      const validSymptomIds = symptoms.map(s => s.id);
-      const invalidSymptoms = selectedSymptoms.filter(id => !validSymptomIds.includes(id));
-      if (invalidSymptoms.length > 0) {
-        throw new Error(`Invalid symptoms selected: ${invalidSymptoms.join(', ')}`);
-      }
-  
-      // API call with full error context
       const apiResponse = await fetch('/api/diagnosis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -112,148 +89,106 @@ router.push(url);
         }),
       });
   
-      // Handle non-200 responses
       if (!apiResponse.ok) {
         const errorBody = await apiResponse.text();
-        throw new Error(`API Error ${apiResponse.status}: ${errorBody.slice(0, 100)}`);
+        throw new Error(`API Error ${apiResponse.status}: ${errorBody}`);
       }
   
       const responseData = await apiResponse.json();
-      console.log('API Response Data:', responseData);
-  
-      // Validate response structure
+      console.log('API Response:', responseData);
+
       if (!responseData.data?.possible_condition) {
-        throw new Error('Invalid diagnosis response structure');
+        throw new Error('Invalid diagnosis response');
       }
-  
-      // Database operations with transaction
+
       const { data: { user } } = await supabase.auth.getUser();
 
-  
       const { data: consultation, error: consultError } = await supabase
-      .from('pet_consultations')
-      .insert({
-        pet_id: selectedPetId,
-        owner_id: user.id,
-        additional_info: additionalInfo
-      })
-      .select()
-      .single();
+        .from('pet_consultations')
+        .insert({
+          pet_id: selectedPetId,
+          owner_id: user.id,
+          additional_info: additionalInfo
+        })
+        .select()
+        .single();
 
-    if (consultError) throw new Error(`Consultation failed: ${consultError.message}`);
-    if (!consultation?.id) throw new Error('Consultation ID missing');
+      if (consultError) throw consultError;
 
-    // 2. Insert consultation symptoms
-    const symptomRows = selectedSymptoms.map(symptomId => ({
-      consultation_id: consultation.id,
-      symptom_id: symptomId
-    }));
-    if (symptomRows.length > 0) {
-      const { error: symptomInsertError } = await supabase
-        .from('consultation_symptoms')
-        .insert(symptomRows);
-      if (symptomInsertError) {
-        console.error('Consultation Symptoms Insert Error:', symptomInsertError);
-        throw new Error('Failed to save consultation symptoms');
-      }
-    }
-
-    // 3. Insert diagnosis
-    const { data: diagnosis, error: diagnosisError } = await supabase
-      .from('ai_diagnoses')
-      .insert({
+      // Save symptoms
+      const symptomRows = selectedSymptoms.map(symptomId => ({
         consultation_id: consultation.id,
-        possible_condition: responseData.data.possible_condition,
-        explanation: responseData.data.explanation
-      })
-      .select()
-      .single();
+        symptom_id: symptomId
+      }));
 
-    if (diagnosisError) {
-      console.error('Database Insert Error:', diagnosisError);
-      throw new Error('Failed to save diagnosis');
-    }
-    if (!diagnosis?.id) throw new Error('Diagnosis ID missing');
-
-    // 4. Insert recommended equipment into diagnosis_equipment
-    // First, fetch all equipment from the DB to match names to IDs
-    const { data: allEquipment, error: equipmentFetchError } = await supabase
-      .from('equipment')
-      .select('id, name');
-    if (equipmentFetchError) {
-      console.error('Equipment Fetch Error:', equipmentFetchError);
-      throw new Error('Failed to fetch equipment list');
-    }
-
-    // Map recommended equipment names to IDs
-    const recommendedEquipmentNames = responseData.data.recommended_equipment || [];
-    const equipmentRows = recommendedEquipmentNames
-      .map(eqName => {
-        const match = allEquipment.find(eq => eq.name.toLowerCase() === eqName.toLowerCase());
-        return match ? { diagnosis_id: diagnosis.id, equipment_id: match.id } : null;
-      })
-      .filter(Boolean);
-
-    if (equipmentRows.length > 0) {
-      const { error: diagnosisEquipmentError } = await supabase
-        .from('diagnosis_equipment')
-        .insert(equipmentRows);
-      if (diagnosisEquipmentError) {
-        console.error('Diagnosis Equipment Insert Error:', diagnosisEquipmentError);
-        throw new Error('Failed to save recommended equipment');
+      if (symptomRows.length > 0) {
+        const { error: symptomError } = await supabase
+          .from('consultation_symptoms')
+          .insert(symptomRows);
+        if (symptomError) throw symptomError;
       }
-    }
 
-      
+      // Save diagnosis (without equipment first)
+      const { data: diagnosis, error: diagnosisError } = await supabase
+        .from('ai_diagnoses')
+        .insert({
+          consultation_id: consultation.id,
+          possible_condition: responseData.data.possible_condition,
+          explanation: responseData.data.explanation
+        })
+        .select()
+        .single();
 
-      if (!consultation?.id) throw new Error('Consultation ID missing');
-      if (!responseData.data.possible_condition) throw new Error('Diagnosis missing');
-      if (!responseData.data.explanation) throw new Error('Explanation missing');
+      if (diagnosisError) throw diagnosisError;
 
+      // Save recommended equipment to diagnosis_equipment table
+      if (responseData.data.recommended_equipment?.length > 0) {
+        // First get all equipment IDs that match the recommended names
+        const { data: equipmentData, error: equipmentError } = await supabase
+          .from('equipment')
+          .select('id, name')
+          .in('name', responseData.data.recommended_equipment);
 
-      if (diagnosisError) {
-        console.error('Database Insert Error:', diagnosisError);
-        console.error('Diagnosis Insert Context:', {
-          consultationId: consultation.id,
-          diagnosisData: responseData.data
+        if (equipmentError) throw equipmentError;
+
+        // Create array of equipment to insert
+        const equipmentInserts = responseData.data.recommended_equipment.map(equipName => {
+          const equipment = equipmentData.find(e => e.name === equipName);
+          return {
+            diagnosis_id: diagnosis.id,
+            equipment_id: equipment?.id || null,
+            equipment_name: equipName
+          };
         });
-        throw new Error('Failed to save diagnosis');
+
+        const { error: equipmentInsertError } = await supabase
+          .from('diagnosis_equipment')
+          .insert(equipmentInserts);
+
+        if (equipmentInsertError) throw equipmentInsertError;
       }
-      // ...existing code...
-  
-      if (diagnosisError) {
-        console.error('Database Insert Error:', {
-          error: diagnosisError,
-          consultationId: consultation.id,
-          diagnosisData: responseData.data
-        });
-        throw new Error('Failed to save diagnosis');
-      }
-  
+
+      // Set the diagnosis result and show it
       setDiagnosisResult(responseData.data);
       setShowResults(true);
-  
+
     } catch (error) {
-      // Structured error logging
-      console.error('Full Error Report:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        components: {
-          selectedPetId,
-          selectedSymptoms,
-          symptomsCount: symptoms.length,
-          petsCount: pets.length
-        },
-        timestamp: new Date().toISOString()
-      });
-      
-      alert(`Diagnosis Error: ${error.message}\n\nCheck browser console for details`);
+      console.error('Error:', error);
+      alert(`Error: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleFindClinics = () => {
+    const queryParams = new URLSearchParams({
+      diagnosis: encodeURIComponent(diagnosisResult.possible_condition),
+      equipment: encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment || [])),
+      symptomIds: encodeURIComponent(JSON.stringify(selectedSymptoms || []))
+    }).toString();
+    
+    router.push(`/components/Pet_Owners/FilteredMap?${queryParams}`);
+  };
 
   if (isLoading) {
     return (
@@ -265,11 +200,7 @@ router.push(url);
 
   if (showResults && diagnosisResult) {
     const selectedPet = pets.find(pet => pet.id === selectedPetId);
-    const queryParams = new URLSearchParams({
-      diagnosis: encodeURIComponent(diagnosisResult.possible_condition),
-      equipment: encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))
-    });
-
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
@@ -304,7 +235,7 @@ router.push(url);
                 <TestTube2 className="mr-2" /> Recommended Tests & Equipment
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {diagnosisResult.recommended_equipment.map((equipment, index) => (
+                {diagnosisResult.recommended_equipment?.map((equipment, index) => (
                   <div key={index} className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <p className="font-medium text-blue-800">{equipment}</p>
                   </div>
@@ -312,61 +243,21 @@ router.push(url);
               </div>
             </div>
 
-            {/* Recommended Clinics Card */}
-            {recommendedClinics.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
-                  <Clinic className="mr-2" /> Nearby Clinics with Available Equipment
-                </h2>
-                <div className="space-y-6">
-                  {recommendedClinics.map((clinic, index) => (
-                    <div key={index} className="border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-xl font-bold text-gray-800">{clinic.clinic.clinic_name}</h3>
-                          <p className="text-gray-600">{clinic.clinic.address}, {clinic.clinic.city}</p>
-                          <p className="text-gray-600">{clinic.clinic.contact_number}</p>
-                        </div>
-                        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-                          Book Appointment
-                        </button>
-                      </div>
-                      <div className="mt-4">
-                        <h4 className="font-semibold text-gray-700">Available Equipment:</h4>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {clinic.equipment && (
-                            <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
-                              {clinic.equipment.name}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="text-center">
-            <button 
-              onClick={() => router.push({
-                pathname: '/components/Pet_Owners/FilteredMap',
-                query: {
-                  diagnosis: encodeURIComponent(diagnosisResult.possible_condition),
-                  equipment: encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))
-                }
-              })}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center mx-auto"
-            >
-              <Hospital className="mr-2" />
-              Find Suitable Clinics
-            </button>
+              <button 
+                onClick={handleFindClinics}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center mx-auto"
+              >
+                <Hospital className="mr-2" />
+                Find Suitable Clinics
+              </button>
             </div>
           </div>
         </div>
       </div>
     );
   }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -407,7 +298,7 @@ router.push(url);
             <label className="block text-lg font-semibold text-gray-800">
               Select observed symptoms<span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-3 border-2 border-gray-200 rounded-xl scrollbar-thin scrollbar-thumb-blue-300 scrollbar-track-blue-50">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-3 border-2 border-gray-200 rounded-xl">
               {symptoms.map((symptom) => (
                 <div
                   key={symptom.id}

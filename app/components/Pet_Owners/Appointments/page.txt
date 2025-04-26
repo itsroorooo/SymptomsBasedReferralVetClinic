@@ -1,335 +1,585 @@
-"use client";
+'use client'
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { Icon } from "@iconify/react";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
+import React, { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { Icon } from '@iconify/react'
+import { createClient } from '@/utils/supabase/client'
 
-dayjs.extend(relativeTime);
+const BookingModal = ({ clinic = {}, consultation = null, onClose, onSuccess }) => {
+  const router = useRouter()
+  const supabase = createClient()
 
-export default function AppointmentsPage() {
-  const [appointments, setAppointments] = useState([]);
-  const [pets, setPets] = useState([]); // State for storing pets
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [filter, setFilter] = useState("all");
-  const router = useRouter();
-  const supabase = createClientComponentClient();
-
-  useEffect(() => {
-    const fetchAppointmentsAndPets = async () => {
-      try {
-        setLoading(true);
-
-        // Get current user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-
-        // Fetch appointments with related data
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from("appointments")
-          .select(`
-            *,
-            clinic: veterinary_clinics(
-              clinic_name,
-              address,
-              city,
-              logo_url,
-              contact_number
-            ),
-            pet: pets(
-              name,
-              pet_type,
-              photo_url
-            ),
-            consultation: pet_consultations(
-              additional_info
-            )
-          `)
-          .eq("owner_id", user.id)
-          .order("appointment_date", { ascending: true })
-          .order("start_time", { ascending: true });
-
-        if (appointmentsError) throw appointmentsError;
-
-        setAppointments(appointmentsData || []);
-
-        // Fetch pets owned by the user (similar to Pet/page.jsx)
-        const { data: petsData, error: petsError } = await supabase
-          .from("pets")
-          .select("*")
-          .eq("owner_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (petsError) throw petsError;
-
-        setPets(petsData || []);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAppointmentsAndPets();
-  }, [supabase]);
-
-  const filteredAppointments = appointments.filter((appt) => {
-    const now = dayjs();
-    const appointmentDate = dayjs(`${appt.appointment_date}T${appt.start_time}`);
-
-    switch (filter) {
-      case "upcoming":
-        return appointmentDate.isAfter(now) && appt.status !== "cancelled";
-      case "past":
-        return appointmentDate.isBefore(now) || appt.status === "completed";
-      case "cancelled":
-        return appt.status === "cancelled";
-      default:
-        return true;
+  // State initialization with session storage fallback
+  const [currentConsultation, setCurrentConsultation] = useState(() => {
+    try {
+      return consultation || JSON.parse(sessionStorage.getItem('currentConsultation')) || null
+    } catch {
+      return null
     }
-  });
+  })
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
+  const [formData, setFormData] = useState({
+    date: '',
+    time: '',
+    ownerName: ''
+  })
+
+  const [availableTimes, setAvailableTimes] = useState([])
+  const [holidays, setHolidays] = useState([])
+  const [petDetails, setPetDetails] = useState(null)
+
+  const [loading, setLoading] = useState({
+    times: false,
+    submitting: false,
+    session: false,
+    pet: false
+  })
+
+  const [errors, setErrors] = useState({})
+
+  // Handle cases where prop might be delayed
+  useEffect(() => {
+    if (!currentConsultation && consultation) {
+      setCurrentConsultation(consultation)
+    }
+  }, [consultation])
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
   }
 
-  if (error) {
+  // Calculate end time (30 minutes after start)
+  const calculateEndTime = (startTime) => {
+    const [hours, minutes] = startTime.split(':').map(Number)
+    const endTime = new Date(1970, 0, 1, hours, minutes + 30)
+    return endTime.toTimeString().substring(0, 5)
+  }
+
+  // Check if date is a holiday
+  const isHoliday = useCallback((date) => {
+    return holidays.some(
+      (holiday) =>
+        new Date(holiday.holiday_date).toDateString() ===
+        new Date(date).toDateString()
+    )
+  }, [holidays])
+
+  // Fetch pet details
+  const fetchPetDetails = useCallback(async (userId) => {
+    if (!currentConsultation?.pet_id) return
+    
+    setLoading(prev => ({ ...prev, pet: true }))
+    setErrors(prev => ({ ...prev, pet: null }))
+    
+    try {
+      const { data: petData, error: petError } = await supabase
+        .from('pets')
+        .select('*')
+        .eq('id', currentConsultation.pet_id)
+        .eq('owner_id', userId)
+        .single()
+
+      if (petError) throw petError
+      if (!petData) throw new Error('Pet not found')
+
+      setPetDetails(petData)
+      setFormData(prev => ({ 
+        ...prev, 
+        ownerName: petData.owner_name || prev.ownerName 
+      }))
+    } catch (error) {
+      setErrors(prev => ({ ...prev, pet: error.message }))
+    } finally {
+      setLoading(prev => ({ ...prev, pet: false }))
+    }
+  }, [currentConsultation?.pet_id, supabase])
+
+  // Fetch clinic holidays
+  const fetchHolidays = useCallback(async () => {
+    if (!clinic?.id) return
+    
+    try {
+      const { data: holidaysData, error: holidaysError } = await supabase
+        .from('veterinary_holidays')
+        .select('*')
+        .eq('clinic_id', clinic.id)
+
+      if (holidaysError) throw holidaysError
+      setHolidays(holidaysData || [])
+    } catch (error) {
+      console.error('Error fetching holidays:', error)
+    }
+  }, [clinic?.id, supabase])
+
+  // Fetch available appointment times
+  const fetchAvailableTimes = useCallback(async () => {
+    if (!formData.date || !clinic?.id) return
+
+    setLoading(prev => ({ ...prev, times: true }))
+    setAvailableTimes([])
+
+    if (isHoliday(formData.date)) {
+      setLoading(prev => ({ ...prev, times: false }))
+      return
+    }
+
+    const dayOfWeek = new Date(formData.date).getDay()
+
+    try {
+      // Get clinic schedule
+      const { data: schedule, error: scheduleError } = await supabase
+        .from('veterinary_schedules')
+        .select('*')
+        .eq('clinic_id', clinic.id)
+        .eq('day_of_week', dayOfWeek)
+        .single()
+
+      if (scheduleError) throw scheduleError
+      if (!schedule || schedule.is_closed) {
+        setLoading(prev => ({ ...prev, times: false }))
+        return
+      }
+
+      // Get existing appointments
+      const { data: appointments, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('start_time')
+        .eq('clinic_id', clinic.id)
+        .eq('appointment_date', formData.date)
+        .in('status', ['pending', 'confirmed'])
+
+      if (appointmentsError) throw appointmentsError
+
+      // Generate available time slots
+      const bookedTimes = appointments?.map((a) => a.start_time) || []
+      const times = []
+      const opening = new Date(`1970-01-01T${schedule.opening_time}`)
+      const closing = new Date(`1970-01-01T${schedule.closing_time}`)
+      let currentTime = new Date(opening)
+
+      while (currentTime < closing) {
+        const timeString = currentTime.toTimeString().substring(0, 5)
+        if (!bookedTimes.includes(timeString)) {
+          times.push(timeString)
+        }
+        currentTime = new Date(currentTime.getTime() + 30 * 60000)
+      }
+
+      setAvailableTimes(times)
+    } catch (error) {
+      setErrors(prev => ({ ...prev, times: 'Failed to load available times' }))
+    } finally {
+      setLoading(prev => ({ ...prev, times: false }))
+    }
+  }, [formData.date, clinic?.id, isHoliday, supabase])
+
+  // Verify session and fetch initial data
+  const verifySessionAndFetchData = useCallback(async () => {
+    setLoading(prev => ({ ...prev, session: true }))
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
+
+      if (error || !session) {
+        router.push('/login')
+        return
+      }
+
+      // Only proceed if we have the required data
+      if (currentConsultation?.pet_id) {
+        await fetchPetDetails(session.user.id)
+      }
+      if (clinic?.id) {
+        await fetchHolidays()
+      }
+    } catch (error) {
+      setErrors(prev => ({ ...prev, session: error.message }))
+    } finally {
+      setLoading(prev => ({ ...prev, session: false }))
+    }
+  }, [supabase, router, fetchPetDetails, fetchHolidays, currentConsultation?.pet_id, clinic?.id])
+
+  // Initial data fetch
+  useEffect(() => {
+    if (currentConsultation?.pet_id && clinic?.id) {
+      verifySessionAndFetchData()
+    }
+  }, [verifySessionAndFetchData])
+
+  // Fetch times when date changes
+  useEffect(() => {
+    if (formData.date) {
+      fetchAvailableTimes()
+    }
+  }, [formData.date, fetchAvailableTimes])
+
+  // Handle form input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+    
+    if (name === 'date') {
+      setFormData(prev => ({ ...prev, time: '' }))
+    }
+    
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: null }))
+    }
+  }
+
+  // Handle form submission
+  const handleSubmit = async () => {
+    // Validate form
+    const newErrors = {}
+    if (!formData.ownerName) newErrors.ownerName = 'Please enter your name'
+    if (!formData.date) newErrors.date = 'Please select a date'
+    if (!formData.time) newErrors.time = 'Please select a time'
+  
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+  
+    setLoading(prev => ({ ...prev, submitting: true }))
+  
+    try {
+      // Verify session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) {
+        throw new Error('User not authenticated')
+      }
+
+      // Prepare appointment data
+      const appointmentData = {
+        consultation_id: currentConsultation.id,
+        clinic_id: clinic.id,
+        pet_id: currentConsultation.pet_id,
+        owner_id: session.user.id,
+        owner_name: formData.ownerName,
+        appointment_date: formData.date,
+        start_time: formData.time,
+        end_time: calculateEndTime(formData.time),
+        status: 'pending',
+        is_ai_booking: currentConsultation.is_ai_booking || false
+      }
+
+      // Create appointment
+      const { data: appointment, error: appointmentError } = await supabase
+        .from('appointments')
+        .insert(appointmentData)
+        .select()
+        .single()
+
+      if (appointmentError) throw appointmentError
+
+      // Clear session storage on success
+      sessionStorage.removeItem('currentConsultation')
+      
+      onSuccess(appointment)
+      onClose()
+    } catch (error) {
+      setErrors({ form: error.message })
+    } finally {
+      setLoading(prev => ({ ...prev, submitting: false }))
+    }
+  }
+
+  // Early return if no consultation data
+  if (!currentConsultation?.pet_id) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen p-4">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          Error: {error}
+      <div className="bg-white rounded-xl p-6 max-w-md mx-auto shadow-lg">
+        <div className="text-center">
+          <Icon 
+            icon="mdi:paw-off" 
+            className="text-4xl text-red-500 mx-auto mb-4" 
+          />
+          <h3 className="text-xl font-bold mb-2">Pet Information Missing</h3>
+          <p className="mb-6 text-gray-600">
+            We couldn't retrieve your pet's details for booking.
+          </p>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => {
+                // Try to reload from session storage
+                try {
+                  const storedData = JSON.parse(
+                    sessionStorage.getItem('currentConsultation')
+                  )
+                  if (storedData?.pet_id) {
+                    setCurrentConsultation(storedData)
+                  } else {
+                    onClose()
+                    router.push('/symptoms')
+                  }
+                } catch {
+                  onClose()
+                  router.push('/symptoms')
+                }
+              }}
+              className="bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg flex items-center justify-center transition-colors"
+            >
+              <Icon icon="mdi:reload" className="mr-2" />
+              Retry
+            </button>
+            <button
+              onClick={() => {
+                onClose()
+                router.push('/symptoms')
+              }}
+              className="bg-gray-200 hover:bg-gray-300 py-2 rounded-lg flex items-center justify-center transition-colors"
+            >
+              <Icon icon="mdi:arrow-left" className="mr-2" />
+              Back to Diagnosis
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => router.push("/Pet_Owners/Dashboard")}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Back to Dashboard
-        </button>
       </div>
-    );
+    )
+  }
+
+  // Loading state
+  if (loading.session || loading.pet) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Icon 
+          icon="mdi:loading" 
+          className="animate-spin text-2xl text-blue-500" 
+        />
+        <span className="ml-2">Loading appointment details...</span>
+      </div>
+    )
+  }
+
+  // Error state
+  if (errors.pet || errors.session) {
+    return (
+      <div className="bg-white rounded-xl p-6 max-w-md mx-auto shadow-lg">
+        <div className="text-center">
+          <Icon 
+            icon="mdi:alert-circle-outline" 
+            className="text-4xl text-red-500 mx-auto mb-4" 
+          />
+          <h3 className="text-xl font-bold mb-2">Error Loading Data</h3>
+          <p className="mb-6 text-gray-600">
+            {errors.pet || errors.session}
+          </p>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => {
+                setErrors({})
+                verifySessionAndFetchData()
+              }}
+              className="bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={onClose}
+              className="bg-gray-200 hover:bg-gray-300 py-2 rounded-lg transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6 font-[Poppins]">
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">My Pets</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-          {pets.map((pet) => (
-            <div key={pet.id} className="bg-white rounded-lg shadow p-4">
-              {pet.photo_url ? (
-                <img
-                  src={pet.photo_url}
-                  alt={pet.name}
-                  className="w-full h-32 object-cover rounded-md mb-4"
-                />
-              ) : (
-                <div className="w-full h-32 bg-gray-200 flex items-center justify-center rounded-md mb-4">
-                  <Icon icon="mdi:paw" className="text-gray-400 text-4xl" />
-                </div>
-              )}
-              <h3 className="text-lg font-semibold text-gray-800">{pet.name}</h3>
-              <p className="text-sm text-gray-600 capitalize">{pet.pet_type}</p>
-              <p className="text-sm text-gray-600">Breed: {pet.breed || "Unknown"}</p>
-              <p className="text-sm text-gray-600">Age: {pet.age || "Unknown"}</p>
+    <div className="bg-white rounded-xl overflow-hidden w-full max-w-md shadow-xl">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-5 text-white relative">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 text-white hover:text-blue-200 transition-colors"
+          aria-label="Close booking form"
+        >
+          <Icon icon="mdi:close" className="text-2xl" />
+        </button>
+        <div className="flex items-center space-x-3">
+          <div className="bg-white/20 p-2 rounded-full">
+            <Icon icon="mdi:paw" className="text-2xl" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold">Schedule Consultation</h3>
+            <p className="text-sm opacity-90">{clinic.clinic_name || 'Veterinary Clinic'}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Form Content */}
+      <div className="p-5 max-h-[70vh] overflow-y-auto">
+        {errors.form && (
+          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200">
+            <div className="flex items-center">
+              <Icon icon="mdi:alert-circle" className="mr-2" />
+              <span>{errors.form}</span>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        )}
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">My Appointments</h1>
-          <p className="text-gray-600">
-            {filteredAppointments.length} {filter === "all" ? "" : filter} appointment(s)
-          </p>
-        </div>
-
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setFilter("all")}
-            className={`px-3 py-1 rounded-md text-sm ${
-              filter === "all" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+        {/* Owner Information */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+            <Icon icon="mdi:account" className="mr-2 text-blue-500" />
+            Pet Owner/Guardian Name
+          </label>
+          <input
+            type="text"
+            name="ownerName"
+            value={formData.ownerName}
+            onChange={handleChange}
+            placeholder="Enter your full name"
+            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 bg-white text-gray-700 ${
+              errors.ownerName ? 'border-red-300' : 'border-gray-300'
             }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter("upcoming")}
-            className={`px-3 py-1 rounded-md text-sm ${
-              filter === "upcoming" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Upcoming
-          </button>
-          <button
-            onClick={() => setFilter("past")}
-            className={`px-3 py-1 rounded-md text-sm ${
-              filter === "past" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Past
-          </button>
-          <button
-            onClick={() => setFilter("cancelled")}
-            className={`px-3 py-1 rounded-md text-sm ${
-              filter === "cancelled" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Cancelled
-          </button>
+            disabled={loading.submitting}
+          />
+          {errors.ownerName && (
+            <p className="mt-1 text-sm text-red-600">{errors.ownerName}</p>
+          )}
         </div>
-      </div>
 
-      {filteredAppointments.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-          <Icon icon="mdi:calendar-remove" className="mx-auto text-4xl text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-700 mb-2">
-            No {filter === "all" ? "" : filter} appointments found
-          </h3>
-          <p className="text-gray-500 mb-4">
-            {filter === "upcoming" 
-              ? "You don't have any upcoming appointments scheduled."
-              : filter === "past"
-              ? "Your past appointments will appear here."
-              : "Your appointments will appear here once scheduled."}
-          </p>
-          <button
-            onClick={() => router.push("/Pet_Owners/Map")}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Book New Appointment
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredAppointments.map((appointment) => {
-            const appointmentDateTime = dayjs(`${appointment.appointment_date}T${appointment.start_time}`);
-            const isUpcoming = appointmentDateTime.isAfter(dayjs()) && appointment.status !== "cancelled";
-            const isPast = appointmentDateTime.isBefore(dayjs()) || appointment.status === "completed";
-            
-            return (
-              <div
-                key={appointment.id}
-                className={`bg-white rounded-xl shadow-sm overflow-hidden border-l-4 ${
-                  appointment.status === "cancelled" ? 'border-red-500' :
-                  isPast ? 'border-gray-400' :
-                  'border-blue-500'
-                }`}
-              >
-                <div className="p-5 md:p-6">
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    {/* Clinic Info */}
-                    <div className="flex items-center flex-1 min-w-0">
-                      {appointment.clinic?.logo_url && (
-                        <img
-                          src={appointment.clinic.logo_url}
-                          alt={appointment.clinic.clinic_name}
-                          className="w-12 h-12 object-contain rounded-lg mr-4"
-                        />
-                      )}
-                      <div className="min-w-0">
-                        <h3 className="font-semibold text-gray-800 truncate">
-                          {appointment.clinic?.clinic_name || "Unknown Clinic"}
-                        </h3>
-                        <p className="text-sm text-gray-500 truncate">
-                          {appointment.clinic?.address}, {appointment.clinic?.city}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Appointment Date/Time */}
-                    <div className="text-center md:text-right">
-                      <div className="text-sm font-medium text-gray-700">
-                        {dayjs(appointment.appointment_date).format("MMM D, YYYY")}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {appointment.start_time} - {appointment.end_time}
-                      </div>
-                      {isUpcoming && (
-                        <div className="text-xs text-gray-400 mt-1">
-                          {appointmentDateTime.fromNow()}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Status & Actions */}
-                    <div className="flex flex-col items-end space-y-2">
-                      {getStatusBadge(appointment.status)}
-                      
-                      <div className="flex space-x-2">
-                        {isUpcoming && appointment.status !== "cancelled" && (
-                          <button
-                            onClick={() => cancelAppointment(appointment.id)}
-                            className="text-xs text-red-600 hover:text-red-800 flex items-center"
-                          >
-                            <Icon icon="mdi:cancel" className="mr-1" />
-                            Cancel
-                          </button>
-                        )}
-                        <button
-                          onClick={() => router.push(`/Pet_Owners/Appointments/${appointment.id}`)}
-                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
-                        >
-                          <Icon icon="mdi:information-outline" className="mr-1" />
-                          Details
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Pet & Reason */}
-                  <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col md:flex-row md:items-center gap-4">
-                    <div className="flex items-center">
-                      {appointment.pet?.photo_url ? (
-                        <img
-                          src={appointment.pet.photo_url}
-                          alt={appointment.pet.name}
-                          className="w-10 h-10 object-cover rounded-full mr-3"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-                          <Icon icon="mdi:paw" className="text-gray-400" />
-                        </div>
-                      )}
-                      <div>
-                        <h4 className="font-medium text-gray-700">{appointment.pet?.name || "Unknown Pet"}</h4>
-                        <p className="text-xs text-gray-500 capitalize">
-                          {appointment.pet?.pet_type || "Unknown type"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-600 line-clamp-2">
-                        <span className="font-medium">Reason:</span>{" "}
-                        {appointment.consultation?.additional_info || "No reason provided"}
-                      </p>
-                    </div>
-
-                    {appointment.clinic?.contact_number && (
-                      <a
-                        href={`tel:${appointment.clinic.contact_number}`}
-                        className="flex items-center text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
-                      >
-                        <Icon icon="mdi:phone" className="mr-1" />
-                        Call Clinic
-                      </a>
-                    )}
-                  </div>
-                </div>
+        {/* Pet Details */}
+        {petDetails && (
+          <div className="mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
+            <div className="flex items-center space-x-2 text-blue-800 mb-2">
+              <Icon icon="mdi:paw" className="text-lg" />
+              <h4 className="font-semibold">Pet Details</h4>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
+              <div>
+                <span className="font-medium">Name:</span> {petDetails.name}
               </div>
-            );
-          })}
+              <div>
+                <span className="font-medium">Type:</span> {petDetails.pet_type}
+              </div>
+              <div>
+                <span className="font-medium">Breed:</span> {petDetails.breed || 'Not specified'}
+              </div>
+              <div>
+                <span className="font-medium">Age:</span> {petDetails.age || 'Unknown'}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Date Picker */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+            <Icon icon="mdi:calendar" className="mr-2 text-blue-500" />
+            Appointment Date
+          </label>
+          <input
+            type="date"
+            name="date"
+            min={new Date().toISOString().split('T')[0]}
+            value={formData.date}
+            onChange={handleChange}
+            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 bg-white text-gray-700 ${
+              errors.date ? 'border-red-300' : 'border-gray-300'
+            }`}
+            disabled={loading.submitting || loading.times}
+          />
+          {errors.date && (
+            <p className="mt-1 text-sm text-red-600">{errors.date}</p>
+          )}
         </div>
-      )}
+
+        {/* Time Slot Selection */}
+        {formData.date && (
+          <div className="mb-4">
+            <div className="flex items-center text-gray-700 mb-2">
+              <Icon icon="mdi:clock-outline" className="mr-2 text-blue-500" />
+              <span className="font-medium">{formatDate(formData.date)}</span>
+            </div>
+            
+            {isHoliday(formData.date) ? (
+              <div className="bg-blue-50 text-blue-700 p-3 rounded-lg border border-blue-100 text-center">
+                <p>The clinic is closed on this day (holiday)</p>
+              </div>
+            ) : loading.times ? (
+              <div className="p-3 bg-blue-50 rounded-lg text-center border border-blue-100">
+                <Icon icon="mdi:loading" className="animate-spin text-xl text-blue-500 inline-block mr-2" />
+                <span>Loading available times...</span>
+              </div>
+            ) : availableTimes.length > 0 ? (
+              <div className="grid grid-cols-3 gap-2">
+                {availableTimes.map(time => (
+                  <button
+                    key={time}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, time }))}
+                    className={`p-2 rounded-lg border text-sm transition-colors ${
+                      formData.time === time
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-white border-gray-300 hover:bg-blue-50 text-blue-700'
+                    }`}
+                    disabled={loading.submitting}
+                  >
+                    {time}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-blue-50 text-blue-700 p-3 rounded-lg border border-blue-100 text-center">
+                <p>No available times for this date</p>
+                <p className="text-sm mt-1">The clinic may be closed or fully booked</p>
+              </div>
+            )}
+            {errors.time && !formData.time && (
+              <p className="mt-1 text-sm text-red-600">{errors.time}</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="bg-gray-50 px-5 py-4 flex justify-end border-t border-gray-200">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 border border-gray-300 rounded-lg mr-2 hover:bg-gray-100 text-gray-700 transition-colors"
+          disabled={loading.submitting}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={
+            !formData.date || 
+            !formData.time || 
+            !formData.ownerName || 
+            loading.submitting || 
+            loading.times
+          }
+          className={`px-4 py-2 rounded-lg flex items-center transition-colors ${
+            (!formData.date || !formData.time || !formData.ownerName || loading.submitting || loading.times)
+                ? 'bg-gray-300 cursor-not-allowed text-white'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }`}
+        >
+          {loading.submitting ? (
+            <>
+              <Icon icon="mdi:loading" className="animate-spin mr-2" />
+              Scheduling...
+            </>
+          ) : (
+            <>
+              <Icon icon="mdi:calendar-check" className="mr-2" />
+              Confirm Appointment
+            </>
+          )}
+        </button>
+      </div>
     </div>
-  );
+  )
 }
+
+export default BookingModal
