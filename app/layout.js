@@ -1,6 +1,8 @@
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
+import { GoogleMapsProvider } from './components/GoogleMapsProvider';
+
 
 const poppins = Poppins({
   subsets: ["latin"],

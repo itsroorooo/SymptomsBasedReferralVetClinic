@@ -1,20 +1,18 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { GoogleMap, Marker, InfoWindow, useJsApiLoader, Circle } from "@react-google-maps/api";
+import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Icon } from "@iconify/react";
 import { Hospital, MapPin } from "lucide-react";
 import { GoogleMapsProvider, useGoogleMaps } from '../../GoogleMapsProvider';
 
-
-const VetMap = () => {
+const AllMap = () => {
   const [clinics, setClinics] = useState([]);
-  const [filteredClinics, setFilteredClinics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
-  const [locationInfo, setLocationInfo] = useState(null);
+  const [showLocationPopup, setShowLocationPopup] = useState(false);
   const [locationError, setLocationError] = useState(null);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [activeInfoWindow, setActiveInfoWindow] = useState(null);
@@ -31,14 +29,7 @@ const VetMap = () => {
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [availableTimes, setAvailableTimes] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [radius, setRadius] = useState(10); // Default radius in kilometers
-  const [showRadiusSelector, setShowRadiusSelector] = useState(false);
-  const MAP_CONFIG = {
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-    libraries: ['places', 'geometry'],
-  };
-  const { isLoaded, loadError } = useJsApiLoader(MAP_CONFIG);
+
   
   const searchParams = useSearchParams();
   const diagnosis = searchParams.get('diagnosis');
@@ -48,46 +39,65 @@ const VetMap = () => {
   const router = useRouter();
   const supabase = createClientComponentClient();
   const mapRef = useRef(null);
-  const geocoderRef = useRef(null);
 
   // Default center coordinates (Butuan City)
   const BUTUAN_CENTER = { lat: 8.9475, lng: 125.5406 };
   const DEFAULT_ZOOM = 13;
 
-  // Calculate distance between two points in km
-  const calculateDistance = (lat1, lng1, lat2, lng2) => {
-    if (!window.google || !window.google.maps || !window.google.maps.geometry) {
-      // Fallback calculation if Geometry library fails to load
-      const R = 6371; // Earth's radius in km
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLng = (lng2 - lng1) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        Math.sin(dLng/2) * Math.sin(dLng/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
-    }
-    
-    // Use Google Maps Geometry library for more accurate calculations
-    const location1 = new window.google.maps.LatLng(lat1, lng1);
-    const location2 = new window.google.maps.LatLng(lat2, lng2);
-    return window.google.maps.geometry.spherical.computeDistanceBetween(location1, location2) / 1000;
-  };
+  // Load Google Maps API
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+    libraries: ['places'],
+  });
 
-  // Filter clinics by distance from user
-  const filterClinicsByDistance = (clinics, userLat, userLng, radiusKm) => {
-    return clinics.filter(clinic => {
-      const distance = calculateDistance(
-        userLat,
-        userLng,
-        clinic.latitude,
-        clinic.longitude
-      );
-      clinic.distance = distance; // Add distance property to clinic
-      return distance <= radiusKm;
-    }).sort((a, b) => a.distance - b.distance); // Sort by distance
-  };
+  const calculateDistance = (lat1, lng1, lat2, lng2) => {
+      if (!window.google || !window.google.maps || !window.google.maps.geometry) {
+        // Fallback calculation if Geometry library fails to load
+        const R = 6371; // Earth's radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = 
+          Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+          Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      }
+      
+      // Use Google Maps Geometry library for more accurate calculations
+      const location1 = new window.google.maps.LatLng(lat1, lng1);
+      const location2 = new window.google.maps.LatLng(lat2, lng2);
+      return window.google.maps.geometry.spherical.computeDistanceBetween(location1, location2) / 1000;
+    };
+  
+    // Filter clinics by distance from user
+    const filterClinicsByDistance = (clinics, userLat, userLng, radiusKm) => {
+      return clinics.filter(clinic => {
+        const distance = calculateDistance(
+          userLat,
+          userLng,
+          clinic.latitude,
+          clinic.longitude
+        );
+        clinic.distance = distance; // Add distance property to clinic
+        return distance <= radiusKm;
+      }).sort((a, b) => a.distance - b.distance); // Sort by distance
+    };
+  
+    // Handle map load errors
+    useEffect(() => {
+      if (loadError) {
+        console.error('Google Maps API Error:', loadError);
+        setMapLoadError(loadError.message);
+      }
+    }, [loadError]);
+  
+    // Initialize geocoder when map loads
+    const onLoad = (map) => {
+      mapRef.current = map;
+      geocoderRef.current = new window.google.maps.Geocoder();
+    };
 
   // Handle map load errors
   useEffect(() => {
@@ -97,19 +107,14 @@ const VetMap = () => {
     }
   }, [loadError]);
 
-  // Initialize geocoder when map loads
-  const onLoad = (map) => {
-    mapRef.current = map;
-    geocoderRef.current = new window.google.maps.Geocoder();
-  };
-
   // Fetch clinics from Supabase with equipment filter
   useEffect(() => {
     const fetchClinics = async () => {
       try {
         const diagnosis = searchParams.get('diagnosis');
         const equipment = JSON.parse(searchParams.get('equipment') || '[]');
-        
+        console.log('Diagnosis:', diagnosis, 'Equipment:', equipment);
+  
         if (!diagnosis || equipment.length === 0) {
           throw new Error('Missing diagnosis or equipment parameters');
         }
@@ -125,19 +130,13 @@ const VetMap = () => {
           .in('clinic_equipment.equipment.name', equipment)
           .eq('clinic_equipment.is_available', true);
   
+        console.log('Supabase data:', data, 'error:', error);
+  
         if (error) throw error;
-        
-        // Add equipment names to each clinic
-        const processedClinics = data.map(clinic => ({
-          ...clinic,
-          equipment: clinic.clinic_equipment
-          .filter(ce => ce.equipment && ce.equipment.name)
-          .map(ce => ce.equipment.name)
-        }));
-        
-        setClinics(processedClinics || []);
-        setFilteredClinics(processedClinics || []);
-        setLoading(false);
+        if (!data || data.length === 0) throw new Error('No clinics found matching criteria.');
+  
+        setClinics(data || []);
+        setLoading(false); 
         
       } catch (error) {
         console.error('Error fetching clinics:', error, typeof error, JSON.stringify(error));
@@ -149,51 +148,55 @@ const VetMap = () => {
     fetchClinics();
   }, [searchParams, supabase]);
 
-
-  // When user location changes, filter clinics
+  // Fetch user's pets when modal opens
   useEffect(() => {
-    if (userLocation && clinics.length > 0) {
-      const nearbyClinics = filterClinicsByDistance(
-        clinics,
-        userLocation.lat,
-        userLocation.lng,
-        radius
-      );
-      setFilteredClinics(nearbyClinics);
-      
-      // Zoom to show both user location and nearby clinics
-      if (mapRef.current && nearbyClinics.length > 0) {
-        const bounds = new window.google.maps.LatLngBounds();
-        bounds.extend(userLocation);
-        nearbyClinics.forEach(clinic => {
-          bounds.extend({ lat: clinic.latitude, lng: clinic.longitude });
-        });
-        mapRef.current.fitBounds(bounds);
-      }
+    if (showAppointmentModal) {
+      const fetchPets = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: petsData } = await supabase
+            .from("pets")
+            .select("*")
+            .eq("owner_id", user.id);
+          setPets(petsData || []);
+        }
+      };
+      fetchPets();
     }
-  }, [userLocation, radius, clinics]);
+  }, [showAppointmentModal, supabase]);
 
-  const getLocationError = (error) => {
-    switch(error.code) {
-      case error.PERMISSION_DENIED:
-        return "Location access was denied. Please enable it in your browser settings.";
-      case error.POSITION_UNAVAILABLE:
-        return "Location information is unavailable.";
-      case error.TIMEOUT:
-        return "The request to get your location timed out.";
-      case error.UNKNOWN_ERROR:
-        return "An unknown error occurred while getting your location.";
-      default:
-        return "Unable to retrieve your location.";
+  // Fetch available times when date changes
+  useEffect(() => {
+    if (appointmentDate && selectedClinic) {
+      const fetchAvailableTimes = async () => {
+        const dayOfWeek = new Date(appointmentDate).getDay();
+        const { data: schedule } = await supabase
+          .from("veterinary_schedules")
+          .select("*")
+          .eq("clinic_id", selectedClinic.id)
+          .eq("day_of_week", dayOfWeek)
+          .single();
+
+        if (schedule && !schedule.is_closed) {
+          const times = [];
+          let currentTime = new Date(`1970-01-01T${schedule.opening_time}`);
+          const endTime = new Date(`1970-01-01T${schedule.closing_time}`);
+
+          while (currentTime < endTime) {
+            const timeString = currentTime.toTimeString().substring(0, 5);
+            times.push(timeString);
+            currentTime = new Date(currentTime.getTime() + 30 * 60000);
+          }
+          setAvailableTimes(times);
+        } else {
+          setAvailableTimes([]);
+        }
+      };
+      fetchAvailableTimes();
     }
-  };
+  }, [appointmentDate, selectedClinic, supabase]);
 
   const handleLocateMe = () => {
-    if (!navigator.geolocation) {
-      setLocationError("Geolocation is not supported by your browser");
-      return;
-    }
-    
     setShowPermissionModal(true);
   };
 
@@ -201,47 +204,30 @@ const VetMap = () => {
     setShowPermissionModal(false);
     if (!allow) return;
 
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by your browser");
+      return;
+    }
+
     setLocationError(null);
-    setLocationInfo("Locating...");
+    setShowLocationPopup(true);
 
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const userPos = { 
-          lat: pos.coords.latitude, 
-          lng: pos.coords.longitude 
-        };
+      (pos) => {
+        const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setUserLocation(userPos);
-        
-        // Try to get address for display
-        try {
-          if (geocoderRef.current) {
-            const results = await geocoderRef.current.geocode({ location: userPos });
-            if (results[0]) {
-              setLocationInfo(results[0].formatted_address);
-            }
-          }
-        } catch (geocodeError) {
-          console.log("Geocoding failed:", geocodeError);
-          setLocationInfo("Your current location");
-        }
-
         if (mapRef.current) {
           mapRef.current.panTo(userPos);
-          mapRef.current.setZoom(14);
+          mapRef.current.setZoom(15);
         }
-        
-        setTimeout(() => setLocationInfo(null), 5000);
+        setTimeout(() => setShowLocationPopup(false), 5000);
       },
       (err) => {
         console.error("Geolocation error:", err);
-        setLocationError(getLocationError(err));
-        setLocationInfo(null);
+        setLocationError("Unable to retrieve your location");
+        setShowLocationPopup(false);
       },
-      { 
-        enableHighAccuracy: true, 
-        timeout: 10000, 
-        maximumAge: 0 
-      }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
@@ -329,54 +315,6 @@ const VetMap = () => {
     mapRef.current = null;
   };
 
-  // Fetch user's pets when modal opens
-  useEffect(() => {
-    if (showAppointmentModal) {
-      const fetchPets = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: petsData } = await supabase
-            .from("pets")
-            .select("*")
-            .eq("owner_id", user.id);
-          setPets(petsData || []);
-        }
-      };
-      fetchPets();
-    }
-  }, [showAppointmentModal, supabase]);
-
-  // Fetch available times when date changes
-  useEffect(() => {
-    if (appointmentDate && selectedClinic) {
-      const fetchAvailableTimes = async () => {
-        const dayOfWeek = new Date(appointmentDate).getDay();
-        const { data: schedule } = await supabase
-          .from("veterinary_schedules")
-          .select("*")
-          .eq("clinic_id", selectedClinic.id)
-          .eq("day_of_week", dayOfWeek)
-          .single();
-
-        if (schedule && !schedule.is_closed) {
-          const times = [];
-          let currentTime = new Date(`1970-01-01T${schedule.opening_time}`);
-          const endTime = new Date(`1970-01-01T${schedule.closing_time}`);
-
-          while (currentTime < endTime) {
-            const timeString = currentTime.toTimeString().substring(0, 5);
-            times.push(timeString);
-            currentTime = new Date(currentTime.getTime() + 30 * 60000);
-          }
-          setAvailableTimes(times);
-        } else {
-          setAvailableTimes([]);
-        }
-      };
-      fetchAvailableTimes();
-    }
-  }, [appointmentDate, selectedClinic, supabase]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -394,7 +332,7 @@ const VetMap = () => {
         <ul className="text-left list-disc pl-5 mb-4 max-w-md mx-auto">
           <li>Your internet connection is working</li>
           <li>The API key is valid and enabled in Google Cloud Console</li>
-          <li>Required APIs are enabled (Maps JavaScript API, Places API, Geometry API)</li>
+          <li>Required APIs are enabled (Maps JavaScript API, Places API)</li>
           <li>Billing is enabled for your Google Cloud project</li>
         </ul>
         <div className="bg-yellow-100 p-4 rounded-md mb-4 text-sm">
@@ -426,7 +364,7 @@ const VetMap = () => {
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
           <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
             <h3 className="font-bold text-lg mb-4">Location Access</h3>
-            <p className="mb-6">Allow this application to access your current location to find nearby clinics?</p>
+            <p className="mb-6">Allow this application to access your current location?</p>
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => confirmLocationAccess(false)}
@@ -447,64 +385,34 @@ const VetMap = () => {
 
       {/* Map Header */}
       <div className="absolute top-4 left-4 z-[1000] bg-white p-4 rounded-lg shadow-md">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Hospital className="h-6 w-6 text-blue-500" />
-              {recommendedEquipment.length > 0 ? (
-                <>
-                  Clinics for: {decodeURIComponent(diagnosis)}
-                  <span className="block text-sm font-normal text-gray-600 mt-1">
-                    Showing {filteredClinics.length} clinics within {radius} km
-                  </span>
-                </>
-              ) : "All Veterinary Clinics"}
-            </h1>
-            {recommendedEquipment.length > 0 && (
-              <div className="mt-2">
-                <p className="text-sm text-gray-600">
-                  Required equipment: 
-                  {recommendedEquipment.map((equip, index) => (
-                    <span key={index} className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                      {equip}
-                    </span>
-                  ))}
-                </p>
-              </div>
-            )}
-          </div>
-          
-          {userLocation && (
-            <button 
-              onClick={() => setShowRadiusSelector(!showRadiusSelector)}
-              className="p-2 bg-blue-100 rounded-full hover:bg-blue-200 transition-colors"
-              title="Change search radius"
-            >
-              <Icon icon="mdi:map-marker-radius" className="text-blue-600" />
-            </button>
-          )}
-        </div>
-        
-        {showRadiusSelector && (
-          <div className="mt-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search Radius: {radius} km
-            </label>
-            <input
-              type="range"
-              min="1"
-              max="50"
-              value={radius}
-              onChange={(e) => setRadius(parseInt(e.target.value))}
-              className="w-full"
-            />
+        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <Hospital className="h-6 w-6 text-blue-500" />
+          {recommendedEquipment.length > 0 ? (
+            <>
+              Clinics for: {decodeURIComponent(diagnosis)}
+              <span className="block text-sm font-normal text-gray-600 mt-1">
+                Showing {clinics.length} clinics with required equipment
+              </span>
+            </>
+          ) : "All Veterinary Clinics"}
+        </h1>
+        {recommendedEquipment.length > 0 && (
+          <div className="mt-2">
+            <p className="text-sm text-gray-600">
+              Required equipment: 
+              {recommendedEquipment.map((equip, index) => (
+                <span key={index} className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                  {equip}
+                </span>
+              ))}
+            </p>
           </div>
         )}
       </div>
 
       <GoogleMap
         mapContainerStyle={{ width: "100%", height: "100%" }}
-        center={userLocation || BUTUAN_CENTER}
+        center={BUTUAN_CENTER}
         zoom={DEFAULT_ZOOM}
         onLoad={onLoad}
         onUnmount={onUnmount}
@@ -517,7 +425,7 @@ const VetMap = () => {
         }}
       >
         {/* Clinic Markers */}
-        {filteredClinics.map((clinic) => (
+        {clinics.map((clinic) => (
           <Marker
             key={clinic.id}
             position={{ lat: clinic.latitude, lng: clinic.longitude }}
@@ -535,16 +443,10 @@ const VetMap = () => {
                   <h3 className="text-lg font-bold text-gray-800 mb-1">
                     {clinic.clinic_name}
                   </h3>
-                  <div className="flex items-start mb-1">
-                    <Icon icon="mdi:map-marker-distance" className="text-gray-500 mr-2 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-gray-600">
-                      {clinic.distance?.toFixed(1)} km away
-                    </p>
-                  </div>
                   <div className="flex items-start mb-3">
                     <Icon icon="mdi:map-marker" className="text-gray-500 mr-2 mt-0.5 flex-shrink-0" />
                     <p className="text-sm text-gray-600">
-                      {clinic.address}, {clinic.city}
+                      {clinic.address}, {clinic.city}, {clinic.country}
                     </p>
                   </div>
                   
@@ -588,38 +490,21 @@ const VetMap = () => {
           </Marker>
         ))}
 
-        {/* User Location Marker with circle */}
+        {/* User Location Marker */}
         {userLocation && (
-          <>
-            <Marker
-              position={userLocation}
-              icon={{
-                url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-                scaledSize: new window.google.maps.Size(32, 32),
-              }}
-            >
-              {locationInfo && (
-                <InfoWindow>
-                  <div className="text-sm font-medium text-blue-600">
-                    {locationInfo}
-                  </div>
-                </InfoWindow>
-              )}
-            </Marker>
-            
-            {/* Show search radius circle */}
-            <Circle
-              center={userLocation}
-              radius={radius * 1000} // Convert km to meters
-              options={{
-                fillColor: "#4285F4",
-                fillOpacity: 0.2,
-                strokeColor: "#4285F4",
-                strokeOpacity: 0.8,
-                strokeWeight: 2,
-              }}
-            />
-          </>
+          <Marker
+            position={userLocation}
+            icon={{
+              url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+              scaledSize: new window.google.maps.Size(32, 32),
+            }}
+          >
+            {showLocationPopup && (
+              <InfoWindow>
+                <div className="text-sm font-medium text-blue-600">You are here</div>
+              </InfoWindow>
+            )}
+          </Marker>
         )}
       </GoogleMap>
 
@@ -819,7 +704,7 @@ const VetMap = () => {
       <div className="absolute bottom-4 right-4 z-[1000]">
         <button
           onClick={handleLocateMe}
-          className="p-3 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors flex items-center justify-center"
+          className="p-3 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
           title="Locate me"
         >
           <Icon icon="mdi:crosshairs-gps" className="text-gray-700 text-xl" />
@@ -828,11 +713,12 @@ const VetMap = () => {
 
       {/* Location Error Message */}
       {locationError && (
-        <div className="absolute bottom-20 right-4 z-[1000] bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-xs">
+        <div className="absolute bottom-20 right-4 z-[1000] bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           {locationError}
         </div>
       )}
     </div>
   );
 };
-export default VetMap;
+
+export default AllMap;

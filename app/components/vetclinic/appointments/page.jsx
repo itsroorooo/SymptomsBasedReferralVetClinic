@@ -1,4 +1,5 @@
-// components/clinic/RealTimeAppointmentAlerts.jsx
+"use client";
+
 import { useEffect, useState } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { toast } from 'react-hot-toast';

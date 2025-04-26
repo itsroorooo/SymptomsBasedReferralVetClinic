@@ -11,7 +11,7 @@ import { countries, countryProvinces, philippineCitiesByProvince } from "@/lib/l
 
 const supabase = createClient();
 
-export default function VeterinaryAdd() {
+export default function VetClinicAdd() {
   const supabase = createClientComponentClient();
   const router = useRouter();
   
@@ -31,7 +31,8 @@ export default function VeterinaryAdd() {
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  
   const [locationStatus, setLocationStatus] = useState({
     loading: false,
     error: null,
@@ -97,9 +98,6 @@ export default function VeterinaryAdd() {
       setAutocomplete(autocompleteInstance);
     }
   }, [googleMapsLoaded]);
-
-  const fillAddressFromPlace = (place) => {
-    const addressComponents = place.address_components;
     
     // Helper function to get address component
     const getComponent = (type) => {
@@ -152,15 +150,60 @@ export default function VeterinaryAdd() {
       throw error;
     }
   };
-
+  
+  const fillAddressFromPlace = (place) => {
+    const addressComponents = place.address_components;
+    
+    // Helper function to get address component
+    const getComponent = (type) => {
+      const component = addressComponents.find(comp => comp.types.includes(type));
+      return component ? component.long_name : "";
+    };
+  
+    // Extract all relevant address components
+    const streetNumber = getComponent("street_number");
+    const route = getComponent("route");
+    const locality = getComponent("locality");
+    const administrativeAreaLevel1 = getComponent("administrative_area_level_1");
+    const administrativeAreaLevel2 = getComponent("administrative_area_level_2");
+    const country = getComponent("country");
+    const postalCode = getComponent("postal_code");
+    const postalTown = getComponent("postal_town");
+  
+    // Construct the street address
+    const streetAddress = [streetNumber, route].filter(Boolean).join(" ");
+    
+    // Determine city (prioritize locality, then administrative_area_level_2, then postal_town)
+    const city = locality || administrativeAreaLevel2 || postalTown || "";
+    
+    // Determine province/state
+    const province = administrativeAreaLevel1 || "";
+  
+    // Update form state with the extracted values
+    setFormData(prev => ({
+      ...prev,
+      address: streetAddress || place.formatted_address,
+      city: city,
+      province: province,
+      country: country || prev.country,
+      zip_code: postalCode || prev.zip_code
+    }));
+  
+    setLocationStatus({
+      loading: false,
+      error: null,
+      success: true,
+    });
+  };
+  
   const handleLocateMe = () => {
     setShowPermissionModal(true);
   };
-
+  
   const confirmLocationAccess = (allow) => {
     setShowPermissionModal(false);
     if (!allow) return;
-
+  
     if (!navigator.geolocation) {
       setLocationStatus({
         loading: false,
@@ -169,13 +212,13 @@ export default function VeterinaryAdd() {
       });
       return;
     }
-
+  
     setLocationStatus({
       loading: true,
       error: null,
       success: false,
     });
-
+  
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
@@ -192,9 +235,15 @@ export default function VeterinaryAdd() {
       },
       (error) => {
         console.error("Geolocation error:", error);
+        let errorMessage = "Unable to retrieve your location";
+        if (error.code === error.PERMISSION_DENIED) {
+          errorMessage = "Location access was denied";
+        } else if (error.code === error.TIMEOUT) {
+          errorMessage = "Location request timed out";
+        }
         setLocationStatus({
           loading: false,
-          error: "Unable to retrieve your location",
+          error: errorMessage,
           success: false,
         });
       },
@@ -683,4 +732,3 @@ export default function VeterinaryAdd() {
       </div>
     </LoadScript>
   );
-}

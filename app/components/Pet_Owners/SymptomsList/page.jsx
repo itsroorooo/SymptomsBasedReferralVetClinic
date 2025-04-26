@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Loader2, CheckCircle, Circle, TestTube2, Hospital } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+
 export default function SymptomPage() {
   const router = useRouter();
   const [symptoms, setSymptoms] = useState([]);
@@ -52,13 +53,13 @@ export default function SymptomPage() {
     fetchData();
   }, [supabase]);
 
-  useEffect(() => {
-    if (showResults && diagnosisResult) {
-      const query = `diagnosis=${encodeURIComponent(diagnosisResult.possible_condition)}&equipment=${encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))}`;
-      const url = `/components/Pet_Owners/FilteredMap?diagnosis=${encodeURIComponent(diagnosisResult.possible_condition)}&equipment=${encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))}`;
-router.push(url);
-    }
-  }, [showResults, diagnosisResult, router]);
+//   useEffect(() => {
+//     if (showResults && diagnosisResult) {
+//       const query = `diagnosis=${encodeURIComponent(diagnosisResult.possible_condition)}&equipment=${encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))}`;
+//       const url = `/components/Pet_Owners/Map?diagnosis=${encodeURIComponent(diagnosisResult.possible_condition)}&equipment=${encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))}`;
+// router.push(url);
+//     }
+//   }, [showResults, diagnosisResult, router]);
 
   // Handle pet selection change
   const handlePetChange = (e) => {
@@ -349,13 +350,13 @@ router.push(url);
 
             <div className="text-center">
             <button 
-              onClick={() => router.push({
-                pathname: '/components/Pet_Owners/FilteredMap',
-                query: {
-                  diagnosis: encodeURIComponent(diagnosisResult.possible_condition),
-                  equipment: encodeURIComponent(JSON.stringify(diagnosisResult.recommended_equipment))
-                }
-              })}
+              onClick={() => {
+                const query = new URLSearchParams({
+                  diagnosis: diagnosisResult.possible_condition,
+                  equipment: JSON.stringify(diagnosisResult.recommended_equipment)
+                });
+                router.push(`/components/Pet_Owners/Map?${query.toString()}`);
+              }}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center mx-auto"
             >
               <Hospital className="mr-2" />
@@ -367,6 +368,8 @@ router.push(url);
       </div>
     );
   }
+
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
