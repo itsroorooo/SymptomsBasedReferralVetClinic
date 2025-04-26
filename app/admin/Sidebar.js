@@ -69,7 +69,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, setActiveComponent }) => {
           >
             {/* Vet icon path */}
           </svg>
-          Vet Clinics
+          Clinics
         </button>
 
         {/* Users Link */}
@@ -89,7 +89,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, setActiveComponent }) => {
           >
             {/* User icon path */}
           </svg>
-          Users
+          Pet Owners
         </button>
 
       </nav>

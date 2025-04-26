@@ -13,6 +13,10 @@ import ProfilePage from "../profile/page";
 import SettingsPage from "../settings/page";
 import AppointmentPage from "../Appointments/page";
 import AllMap from "../Map/DisplayAllMap";
+import { useRouter } from "next/navigation";
+import ProfilePage from "../profile/page";
+import SettingsPage from "../settings/page";
+import ClinicAppointmentsPage from "../Appointments/page";
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -317,6 +321,7 @@ const Dashboard = () => {
             {activeComponent === "Dashboard" && <div>Home Content</div>}
             {activeComponent === "pet" && <PetsPage />}
             {activeComponent === "appointment" && <AppointmentPage />}
+            {activeComponent === "appointment" && <ClinicAppointmentsPage />}
             {activeComponent === "map" && <AllMap />}
             {activeComponent === "symptoms" && <SymptomsList />}
             {activeComponent === "profile" && (

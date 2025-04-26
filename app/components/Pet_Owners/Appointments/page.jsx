@@ -1,335 +1,482 @@
-"use client";
+import { useState, useEffect } from 'react';
+import { createClient } from "@/utils/supabase/client";
+import Head from 'next/head';
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { Icon } from "@iconify/react";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
-
-dayjs.extend(relativeTime);
-
-export default function AppointmentsPage() {
+const AppointmentPage = () => {
+  const [user, setUser] = useState(null);
   const [appointments, setAppointments] = useState([]);
-  const [pets, setPets] = useState([]); // State for storing pets
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState({
+    page: true,
+    appointments: true,
+    clinics: true
+  });
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState("all");
-  const router = useRouter();
-  const supabase = createClientComponentClient();
+  const [expandedAppointment, setExpandedAppointment] = useState(null);
+  const [tabValue, setTabValue] = useState(0);
+  const supabase = createClient();
+
+  const fetchUserAndData = async () => {
+    try {
+      setLoading(prev => ({ ...prev, page: true, appointments: true }));
+      setError(null);
+
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      
+      setUser(user);
+      if (!user) {
+        setLoading({ page: false, appointments: false });
+        return;
+      }
+
+      await fetchAppointments(user.id);
+    } catch (err) {
+      console.error('Error:', err);
+      setError(err.message || 'Failed to load data');
+    } finally {
+      setLoading(prev => ({ ...prev, page: false }));
+    }
+  };
+
+  const fetchAppointments = async (userId) => {
+    try {
+      setLoading(prev => ({ ...prev, appointments: true }));
+      
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          appointment_date,
+          start_time,
+          end_time,
+          status,
+          created_at,
+          is_ai_booking,
+          clinic:clinic_id (
+            id,
+            clinic_name,
+            address,
+            city,
+            province,
+            contact_number
+          ),
+          pet:pet_id (
+            id,
+            name,
+            pet_type,
+            breed,
+            age,
+            photo_url
+          ),
+          consultation_id,
+          consultation:consultation_id (
+            id,
+            additional_info,
+            status,
+            consultation_symptoms (
+              symptom:symptom_id (
+                id,
+                name
+              )
+            ),
+            ai_diagnoses (
+              id,
+              possible_condition,
+              explanation,
+              created_at
+            )
+          )
+        `)
+        .eq('owner_id', userId)
+        .order('appointment_date', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      if (error) throw error;
+
+      setAppointments(data || []);
+    } catch (err) {
+      console.error('Error fetching appointments:', err);
+      setError('Failed to load appointments');
+    } finally {
+      setLoading(prev => ({ ...prev, appointments: false }));
+    }
+  };
+
+  const handleAccordionChange = (appointmentId) => {
+    setExpandedAppointment(expandedAppointment === appointmentId ? null : appointmentId);
+  };
+
+  const handleTabChange = (newValue) => {
+    setTabValue(newValue);
+  };
+
+  const formatDate = (dateString) => {
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
+  const formatTime = (timeString) => {
+    return new Date(`1970-01-01T${timeString}`).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'confirmed':
+        return 'bg-green-100 text-green-800';
+      case 'completed':
+        return 'bg-blue-100 text-blue-800';
+      case 'declined':
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Filter appointments by type
+  const regularAppointments = appointments.filter(appt => !appt.is_ai_booking);
+  const aiAppointments = appointments.filter(appt => appt.is_ai_booking);
+
+  const renderAppointmentList = (appointmentsToRender) => {
+    if (loading.appointments) {
+      return (
+        <div className="flex justify-center items-center min-h-[200px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        </div>
+      );
+    }
+
+    if (appointmentsToRender.length === 0) {
+      return (
+        <div className="p-6 text-center">
+          <h3 className="text-xl font-semibold text-gray-700">No appointments found</h3>
+          <p className="text-gray-500 mt-2">
+            {tabValue === 0 
+              ? "You haven't made any regular appointments yet." 
+              : "You haven't made any AI-assisted appointments yet."}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {appointmentsToRender.map((appointment) => (
+          <div key={appointment.id} className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div 
+              className={`p-4 cursor-pointer transition-all duration-200 ${expandedAppointment === appointment.id ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
+              onClick={() => handleAccordionChange(appointment.id)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className={`flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full ${appointment.is_ai_booking ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                    {appointment.is_ai_booking ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">Appointment for {appointment.pet?.name || 'Unknown Pet'}</h3>
+                    <div className="text-sm text-gray-500">
+                      <p>{formatDate(appointment.appointment_date)} • {formatTime(appointment.start_time)} - {formatTime(appointment.end_time)}</p>
+                      <p>{appointment.clinic?.clinic_name || 'Unknown Clinic'}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {appointment.is_ai_booking && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="mr-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                      </svg>
+                      AI-Assisted
+                    </span>
+                  )}
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                    {appointment.status}
+                  </span>
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className={`h-5 w-5 text-gray-400 transform transition-transform duration-200 ${expandedAppointment === appointment.id ? 'rotate-180' : ''}`} 
+                    viewBox="0 0 20 20" 
+                    fill="currentColor"
+                  >
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            {expandedAppointment === appointment.id && (
+              <div className="px-4 pb-4">
+                {appointment.is_ai_booking && (
+                  <div className="mb-4">
+                    <span className="inline-block bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                      AI-Assisted Booking
+                    </span>
+                  </div>
+                )}
+                
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    Pet Information
+                  </h4>
+                  <div className="flex items-start space-x-4">
+                    {appointment.pet?.photo_url ? (
+                      <img 
+                        src={appointment.pet.photo_url} 
+                        alt={appointment.pet.name} 
+                        className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-sm text-gray-500">Name</p>
+                        <p className="font-medium">{appointment.pet?.name || 'Unknown'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Type</p>
+                        <p className="font-medium">{appointment.pet?.pet_type || 'Unknown'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Breed</p>
+                        <p className="font-medium">{appointment.pet?.breed || 'Unknown'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Age</p>
+                        <p className="font-medium">{appointment.pet?.age || 'Unknown'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border-t border-gray-200 my-4"></div>
+                
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Clinic Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Clinic Name</p>
+                      <p className="font-medium">{appointment.clinic?.clinic_name || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Address</p>
+                      <p className="font-medium">
+                        {appointment.clinic?.address || 'Unknown'}, {appointment.clinic?.city || 'Unknown'}, {appointment.clinic?.province || 'Unknown'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Contact</p>
+                      <p className="font-medium">{appointment.clinic?.contact_number || 'Unknown'}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border-t border-gray-200 my-4"></div>
+                
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Appointment Details
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Date</p>
+                      <p className="font-medium">{formatDate(appointment.appointment_date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Time</p>
+                      <p className="font-medium">{formatTime(appointment.start_time)} - {formatTime(appointment.end_time)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Status</p>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                        {appointment.status}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Booked on</p>
+                      <p className="font-medium">{new Date(appointment.created_at).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {appointment.consultation && (
+                  <>
+                    <div className="border-t border-gray-200 my-4"></div>
+                    
+                    <div className="mb-6">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        Consultation Details
+                      </h4>
+                      
+                      {appointment.consultation.consultation_symptoms?.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-500 mb-2">Reported Symptoms</p>
+                          <div className="flex flex-wrap gap-2">
+                            {appointment.consultation.consultation_symptoms.map((symptomItem) => (
+                              <span 
+                                key={symptomItem.symptom?.id || Math.random()}
+                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                              >
+                                {symptomItem.symptom?.name || 'Unknown symptom'}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {appointment.is_ai_booking && appointment.consultation.ai_diagnoses?.length > 0 && (
+                        <div>
+                          <p className="text-sm text-gray-500 mb-2">AI-Generated Possible Diagnoses</p>
+                          <div className="space-y-3">
+                            {appointment.consultation.ai_diagnoses.map((diagnosis) => (
+                              <div key={diagnosis.id} className="bg-gray-50 p-3 rounded-lg">
+                                <p className="font-medium">
+                                  {typeof diagnosis.possible_condition === 'object' 
+                                    ? diagnosis.possible_condition.diagnosis || 'Unknown diagnosis'
+                                    : diagnosis.possible_condition || 'Unknown diagnosis'}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   useEffect(() => {
-    const fetchAppointmentsAndPets = async () => {
-      try {
-        setLoading(true);
+    fetchUserAndData();
+  }, []);
 
-        // Get current user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-
-        // Fetch appointments with related data
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from("appointments")
-          .select(`
-            *,
-            clinic: veterinary_clinics(
-              clinic_name,
-              address,
-              city,
-              logo_url,
-              contact_number
-            ),
-            pet: pets(
-              name,
-              pet_type,
-              photo_url
-            ),
-            consultation: pet_consultations(
-              additional_info
-            )
-          `)
-          .eq("owner_id", user.id)
-          .order("appointment_date", { ascending: true })
-          .order("start_time", { ascending: true });
-
-        if (appointmentsError) throw appointmentsError;
-
-        setAppointments(appointmentsData || []);
-
-        // Fetch pets owned by the user (similar to Pet/page.jsx)
-        const { data: petsData, error: petsError } = await supabase
-          .from("pets")
-          .select("*")
-          .eq("owner_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (petsError) throw petsError;
-
-        setPets(petsData || []);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAppointmentsAndPets();
-  }, [supabase]);
-
-  const filteredAppointments = appointments.filter((appt) => {
-    const now = dayjs();
-    const appointmentDate = dayjs(`${appt.appointment_date}T${appt.start_time}`);
-
-    switch (filter) {
-      case "upcoming":
-        return appointmentDate.isAfter(now) && appt.status !== "cancelled";
-      case "past":
-        return appointmentDate.isBefore(now) || appt.status === "completed";
-      case "cancelled":
-        return appt.status === "cancelled";
-      default:
-        return true;
-    }
-  });
-
-  if (loading) {
+  if (loading.page) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen p-4">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          Error: {error}
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                Error: {error}
+              </p>
+            </div>
+          </div>
         </div>
-        <button
-          onClick={() => router.push("/Pet_Owners/Dashboard")}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        <button 
+          onClick={fetchUserAndData}
+          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
         >
-          Back to Dashboard
+          Retry
         </button>
       </div>
     );
   }
 
+  if (!user) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto text-center">
+        <h3 className="text-xl font-semibold text-gray-700">Please sign in to view appointments</h3>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6 font-[Poppins]">
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">My Pets</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-          {pets.map((pet) => (
-            <div key={pet.id} className="bg-white rounded-lg shadow p-4">
-              {pet.photo_url ? (
-                <img
-                  src={pet.photo_url}
-                  alt={pet.name}
-                  className="w-full h-32 object-cover rounded-md mb-4"
-                />
-              ) : (
-                <div className="w-full h-32 bg-gray-200 flex items-center justify-center rounded-md mb-4">
-                  <Icon icon="mdi:paw" className="text-gray-400 text-4xl" />
-                </div>
-              )}
-              <h3 className="text-lg font-semibold text-gray-800">{pet.name}</h3>
-              <p className="text-sm text-gray-600 capitalize">{pet.pet_type}</p>
-              <p className="text-sm text-gray-600">Breed: {pet.breed || "Unknown"}</p>
-              <p className="text-sm text-gray-600">Age: {pet.age || "Unknown"}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">My Appointments</h1>
-          <p className="text-gray-600">
-            {filteredAppointments.length} {filter === "all" ? "" : filter} appointment(s)
-          </p>
-        </div>
-
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setFilter("all")}
-            className={`px-3 py-1 rounded-md text-sm ${
-              filter === "all" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter("upcoming")}
-            className={`px-3 py-1 rounded-md text-sm ${
-              filter === "upcoming" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Upcoming
-          </button>
-          <button
-            onClick={() => setFilter("past")}
-            className={`px-3 py-1 rounded-md text-sm ${
-              filter === "past" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Past
-          </button>
-          <button
-            onClick={() => setFilter("cancelled")}
-            className={`px-3 py-1 rounded-md text-sm ${
-              filter === "cancelled" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Cancelled
-          </button>
-        </div>
-      </div>
-
-      {filteredAppointments.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-          <Icon icon="mdi:calendar-remove" className="mx-auto text-4xl text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-700 mb-2">
-            No {filter === "all" ? "" : filter} appointments found
-          </h3>
-          <p className="text-gray-500 mb-4">
-            {filter === "upcoming" 
-              ? "You don't have any upcoming appointments scheduled."
-              : filter === "past"
-              ? "Your past appointments will appear here."
-              : "Your appointments will appear here once scheduled."}
-          </p>
-          <button
-            onClick={() => router.push("/Pet_Owners/Map")}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Book New Appointment
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredAppointments.map((appointment) => {
-            const appointmentDateTime = dayjs(`${appointment.appointment_date}T${appointment.start_time}`);
-            const isUpcoming = appointmentDateTime.isAfter(dayjs()) && appointment.status !== "cancelled";
-            const isPast = appointmentDateTime.isBefore(dayjs()) || appointment.status === "completed";
-            
-            return (
-              <div
-                key={appointment.id}
-                className={`bg-white rounded-xl shadow-sm overflow-hidden border-l-4 ${
-                  appointment.status === "cancelled" ? 'border-red-500' :
-                  isPast ? 'border-gray-400' :
-                  'border-blue-500'
-                }`}
+    <>
+      <Head>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+      </Head>
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-['Poppins']">
+        
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => handleTabChange(0)}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${tabValue === 0 ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
-                <div className="p-5 md:p-6">
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    {/* Clinic Info */}
-                    <div className="flex items-center flex-1 min-w-0">
-                      {appointment.clinic?.logo_url && (
-                        <img
-                          src={appointment.clinic.logo_url}
-                          alt={appointment.clinic.clinic_name}
-                          className="w-12 h-12 object-contain rounded-lg mr-4"
-                        />
-                      )}
-                      <div className="min-w-0">
-                        <h3 className="font-semibold text-gray-800 truncate">
-                          {appointment.clinic?.clinic_name || "Unknown Clinic"}
-                        </h3>
-                        <p className="text-sm text-gray-500 truncate">
-                          {appointment.clinic?.address}, {appointment.clinic?.city}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Appointment Date/Time */}
-                    <div className="text-center md:text-right">
-                      <div className="text-sm font-medium text-gray-700">
-                        {dayjs(appointment.appointment_date).format("MMM D, YYYY")}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {appointment.start_time} - {appointment.end_time}
-                      </div>
-                      {isUpcoming && (
-                        <div className="text-xs text-gray-400 mt-1">
-                          {appointmentDateTime.fromNow()}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Status & Actions */}
-                    <div className="flex flex-col items-end space-y-2">
-                      {getStatusBadge(appointment.status)}
-                      
-                      <div className="flex space-x-2">
-                        {isUpcoming && appointment.status !== "cancelled" && (
-                          <button
-                            onClick={() => cancelAppointment(appointment.id)}
-                            className="text-xs text-red-600 hover:text-red-800 flex items-center"
-                          >
-                            <Icon icon="mdi:cancel" className="mr-1" />
-                            Cancel
-                          </button>
-                        )}
-                        <button
-                          onClick={() => router.push(`/Pet_Owners/Appointments/${appointment.id}`)}
-                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
-                        >
-                          <Icon icon="mdi:information-outline" className="mr-1" />
-                          Details
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Pet & Reason */}
-                  <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col md:flex-row md:items-center gap-4">
-                    <div className="flex items-center">
-                      {appointment.pet?.photo_url ? (
-                        <img
-                          src={appointment.pet.photo_url}
-                          alt={appointment.pet.name}
-                          className="w-10 h-10 object-cover rounded-full mr-3"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-                          <Icon icon="mdi:paw" className="text-gray-400" />
-                        </div>
-                      )}
-                      <div>
-                        <h4 className="font-medium text-gray-700">{appointment.pet?.name || "Unknown Pet"}</h4>
-                        <p className="text-xs text-gray-500 capitalize">
-                          {appointment.pet?.pet_type || "Unknown type"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-600 line-clamp-2">
-                        <span className="font-medium">Reason:</span>{" "}
-                        {appointment.consultation?.additional_info || "No reason provided"}
-                      </p>
-                    </div>
-
-                    {appointment.clinic?.contact_number && (
-                      <a
-                        href={`tel:${appointment.clinic.contact_number}`}
-                        className="flex items-center text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
-                      >
-                        <Icon icon="mdi:phone" className="mr-1" />
-                        Call Clinic
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                <svg xmlns="http://www.w3.org/2000/svg" className={`mr-2 h-5 w-5 ${tabValue === 0 ? 'text-purple-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                Regular Bookings
+                {regularAppointments.length > 0 && (
+                  <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 0 ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                    {regularAppointments.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => handleTabChange(1)}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${tabValue === 1 ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className={`mr-2 h-5 w-5 ${tabValue === 1 ? 'text-purple-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                </svg>
+                AI-Assisted
+                {aiAppointments.length > 0 && (
+                  <span className={`ml-2 py-0.5 px-2 rounded-full text-xs font-medium ${tabValue === 1 ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                    {aiAppointments.length}
+                  </span>
+                )}
+              </button>
+            </nav>
+          </div>
         </div>
-      )}
-    </div>
+        
+        {tabValue === 0 ? renderAppointmentList(regularAppointments) : renderAppointmentList(aiAppointments)}
+      </div>
+    </>
   );
-}
+};
+
+export default AppointmentPage;
