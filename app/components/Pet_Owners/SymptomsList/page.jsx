@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Loader2, CheckCircle, Circle, TestTube2, Hospital } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+
 export default function SymptomPage() {
   const router = useRouter();
   const [symptoms, setSymptoms] = useState([]);

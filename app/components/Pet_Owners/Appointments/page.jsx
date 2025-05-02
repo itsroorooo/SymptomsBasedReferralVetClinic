@@ -1,6 +1,9 @@
+"use client";
+
 import { useState, useEffect } from 'react';
 import { createClient } from "@/utils/supabase/client";
 import Head from 'next/head';
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button } from '@mui/material';
 
 const AppointmentPage = () => {
   const [user, setUser] = useState(null);
@@ -13,7 +16,22 @@ const AppointmentPage = () => {
   const [error, setError] = useState(null);
   const [expandedAppointment, setExpandedAppointment] = useState(null);
   const [tabValue, setTabValue] = useState(0);
+  const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [declineReason, setDeclineReason] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const supabase = createClient();
+
+  // Helper function to decode URL-encoded strings
+  const decodeDiagnosis = (diagnosis) => {
+    if (typeof diagnosis === 'string') {
+      return decodeURIComponent(diagnosis);
+    }
+    if (diagnosis?.diagnosis) {
+      return decodeURIComponent(diagnosis.diagnosis);
+    }
+    return 'Unknown diagnosis';
+  };
 
   const fetchUserAndData = async () => {
     try {
@@ -51,6 +69,7 @@ const AppointmentPage = () => {
           start_time,
           end_time,
           status,
+          reason_for_decline,
           created_at,
           is_ai_booking,
           clinic:clinic_id (
@@ -94,13 +113,36 @@ const AppointmentPage = () => {
 
       if (error) throw error;
 
-      setAppointments(data || []);
+      // Process data to decode URL-encoded strings
+      const processedData = data?.map(appointment => {
+        if (appointment.consultation?.ai_diagnoses) {
+          return {
+            ...appointment,
+            consultation: {
+              ...appointment.consultation,
+              ai_diagnoses: appointment.consultation.ai_diagnoses.map(diagnosis => ({
+                ...diagnosis,
+                possible_condition: decodeDiagnosis(diagnosis.possible_condition),
+                explanation: diagnosis.explanation ? decodeDiagnosis(diagnosis.explanation) : null
+              }))
+            }
+          };
+        }
+        return appointment;
+      });
+
+      setAppointments(processedData || []);
     } catch (err) {
       console.error('Error fetching appointments:', err);
       setError('Failed to load appointments');
     } finally {
       setLoading(prev => ({ ...prev, appointments: false }));
     }
+  };
+
+  const handleOpenDeclineDialog = (appointment) => {
+    setSelectedAppointment(appointment);
+    setDeclineDialogOpen(true);
   };
 
   const handleAccordionChange = (appointmentId) => {
@@ -146,7 +188,7 @@ const AppointmentPage = () => {
   const renderAppointmentList = (appointmentsToRender) => {
     if (loading.appointments) {
       return (
-        <div className="flex justify-center items-center min-h-[200px]">
+        <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       );
@@ -154,7 +196,7 @@ const AppointmentPage = () => {
 
     if (appointmentsToRender.length === 0) {
       return (
-        <div className="p-6 text-center">
+        <div className="p-6 text-center bg-gradient-to-br from-blue-50 to-purple-50 ">
           <h3 className="text-xl font-semibold text-gray-700">No appointments found</h3>
           <p className="text-gray-500 mt-2">
             {tabValue === 0 
@@ -166,7 +208,7 @@ const AppointmentPage = () => {
     }
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 bg-gradient-to-br from-blue-50 to-purple-50 ">
         {appointmentsToRender.map((appointment) => (
           <div key={appointment.id} className="bg-white rounded-xl shadow-md overflow-hidden">
             <div 
@@ -325,6 +367,12 @@ const AppointmentPage = () => {
                       <p className="text-sm text-gray-500">Booked on</p>
                       <p className="font-medium">{new Date(appointment.created_at).toLocaleString()}</p>
                     </div>
+                    {appointment.reason_for_decline && (
+                      <div className="md:col-span-2">
+                        <p className="text-sm text-gray-500">Decline Reason</p>
+                        <p className="font-medium">{appointment.reason_for_decline}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -363,9 +411,7 @@ const AppointmentPage = () => {
                             {appointment.consultation.ai_diagnoses.map((diagnosis) => (
                               <div key={diagnosis.id} className="bg-gray-50 p-3 rounded-lg">
                                 <p className="font-medium">
-                                  {typeof diagnosis.possible_condition === 'object' 
-                                    ? diagnosis.possible_condition.diagnosis || 'Unknown diagnosis'
-                                    : diagnosis.possible_condition || 'Unknown diagnosis'}
+                                  {decodeDiagnosis(diagnosis.possible_condition)}
                                 </p>
                               </div>
                             ))}
@@ -389,7 +435,7 @@ const AppointmentPage = () => {
 
   if (loading.page) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 ">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
@@ -397,7 +443,7 @@ const AppointmentPage = () => {
 
   if (error) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-6 max-w-4xl mx-auto bg-gradient-to-br from-blue-50 to-purple-50 ">
         <div className="bg-red-50 border-l-4 border-red-400 p-4">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -424,7 +470,7 @@ const AppointmentPage = () => {
 
   if (!user) {
     return (
-      <div className="p-6 max-w-4xl mx-auto text-center">
+      <div className="p-6 max-w-4xl mx-auto text-center bg-gradient-to-br from-blue-50 to-purple-50 ">
         <h3 className="text-xl font-semibold text-gray-700">Please sign in to view appointments</h3>
       </div>
     );
@@ -432,18 +478,17 @@ const AppointmentPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8 font-['Poppins']">
-    <>
       <Head>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       </Head>
-    
         
+      <div className="max-w-6xl mx-auto">
         <div className="mb-6">
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => handleTabChange(0)}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${tabValue === 0 ? 'border-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${tabValue === 0 ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className={`mr-2 h-5 w-5 ${tabValue === 0 ? 'text-blue-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -457,7 +502,7 @@ const AppointmentPage = () => {
               </button>
               <button
                 onClick={() => handleTabChange(1)}
-                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${tabValue === 1 ? 'border-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center ${tabValue === 1 ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className={`mr-2 h-5 w-5 ${tabValue === 1 ? 'text-blue-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
@@ -474,7 +519,48 @@ const AppointmentPage = () => {
         </div>
         
         {tabValue === 0 ? renderAppointmentList(regularAppointments) : renderAppointmentList(aiAppointments)}
-    </>
+      </div>
+
+      {/* Decline Reason Dialog */}
+      <Dialog open={declineDialogOpen} onClose={() => !isProcessing && setDeclineDialogOpen(false)}>
+        <DialogTitle>Decline Appointment</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Reason for declining"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={declineReason}
+            onChange={(e) => setDeclineReason(e.target.value)}
+            multiline
+            rows={4}
+            disabled={isProcessing}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setDeclineDialogOpen(false)}
+            disabled={isProcessing}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => {
+              if (!declineReason.trim()) {
+                alert('Please provide a reason for declining');
+                return;
+              }
+              setDeclineDialogOpen(false);
+            }}
+            color="error"
+            disabled={isProcessing}
+          >
+            {isProcessing ? 'Processing...' : 'View Reason'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

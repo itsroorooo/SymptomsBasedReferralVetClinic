@@ -23,9 +23,36 @@ const BookAppointmentForm = ({ clinic = {}, onClose, onSuccess }) => {
   })
   const [errors, setErrors] = useState({})
   const [sessionChecked, setSessionChecked] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   const router = useRouter()
   const supabase = createClient()
+
+  // Check if a time slot is in the past for the selected date
+  const isPastTime = (date, time) => {
+    if (!date || !time) return false
+    
+    const today = new Date()
+    const selectedDate = new Date(date)
+    
+    // If selected date is not today, it's not a past time
+    if (selectedDate.toDateString() !== today.toDateString()) {
+      return false
+    }
+    
+    // Get current hours and minutes
+    const currentHours = today.getHours()
+    const currentMinutes = today.getMinutes()
+    
+    // Parse the time slot
+    const [hours, minutes] = time.split(':').map(Number)
+    
+    // Compare with current time
+    if (hours < currentHours) return true
+    if (hours === currentHours && minutes < currentMinutes) return true
+    
+    return false
+  }
 
   // Format date for display
   const formatDate = (dateString) => {
@@ -75,6 +102,7 @@ const BookAppointmentForm = ({ clinic = {}, onClose, onSuccess }) => {
       setErrors(prev => ({ ...prev, session: 'Authentication check failed' }))
     } finally {
       setLoading(prev => ({ ...prev, session: false }))
+      setIsLoaded(true)
     }
   }, [supabase, router, clinic.id])
 
@@ -200,21 +228,26 @@ const BookAppointmentForm = ({ clinic = {}, onClose, onSuccess }) => {
     if (!formData.ownerName) newErrors.ownerName = 'Please enter your name'
     if (!formData.date) newErrors.date = 'Please select a date'
     if (!formData.time) newErrors.time = 'Please select a time'
-  
+    
+    // Additional validation for past times
+    if (formData.date && formData.time && isPastTime(formData.date, formData.time)) {
+      newErrors.time = 'Cannot select a time that has already passed'
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
       return
     }
-  
+
     setLoading(prev => ({ ...prev, submitting: true }))
-  
+
     try {
       // 1. Verify session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session) {
         throw new Error('User not authenticated - please login again')
       }
-  
+
       // 2. Prepare consultation data
       const consultationData = {
         pet_id: formData.petId,
@@ -222,16 +255,16 @@ const BookAppointmentForm = ({ clinic = {}, onClose, onSuccess }) => {
         status: 'pending',
         pet_type: selectedPet?.pet_type || 'other'
       }
-  
+
       console.log('Attempting to create consultation with:', consultationData)
-  
+
       // 3. Create consultation with enhanced error handling
       const { data: consultation, error: consultError } = await supabase
         .from('pet_consultations')
         .insert(consultationData)
         .select()
         .single()
-  
+
       if (consultError) {
         console.error('Detailed consultation error:', {
           message: consultError.message,
@@ -241,13 +274,13 @@ const BookAppointmentForm = ({ clinic = {}, onClose, onSuccess }) => {
         })
         throw new Error(`Failed to create consultation: ${consultError.message}`)
       }
-  
+
       if (!consultation) {
         throw new Error('No consultation data returned from database')
       }
-  
+
       console.log('Created consultation:', consultation)
-  
+
       // 4. Prepare appointment data
       const appointmentData = {
         consultation_id: consultation.id,
@@ -259,14 +292,14 @@ const BookAppointmentForm = ({ clinic = {}, onClose, onSuccess }) => {
         end_time: calculateEndTime(formData.time),
         status: 'pending'
       }
-  
+
       console.log('Attempting to create appointment with:', appointmentData)
-  
+
       // 5. Create appointment
       const { error: appointmentError } = await supabase
         .from('appointments')
         .insert(appointmentData)
-  
+
       if (appointmentError) {
         console.error('Detailed appointment error:', {
           message: appointmentError.message,
@@ -280,10 +313,10 @@ const BookAppointmentForm = ({ clinic = {}, onClose, onSuccess }) => {
           .from('pet_consultations')
           .delete()
           .eq('id', consultation.id)
-  
+
         throw new Error(`Failed to create appointment: ${appointmentError.message}`)
       }
-  
+
       onSuccess()
       onClose()
     } catch (error) {
@@ -312,11 +345,10 @@ const BookAppointmentForm = ({ clinic = {}, onClose, onSuccess }) => {
   // Get selected pet details
   const selectedPet = pets.find(p => p.id === formData.petId)
 
-  if (loading.session) {
+  if (!isLoaded) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Icon icon="mdi:loading" className="animate-spin text-2xl text-blue-500" />
-        <span className="ml-2">Checking authentication...</span>
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
       </div>
     )
   }
@@ -486,21 +518,28 @@ const BookAppointmentForm = ({ clinic = {}, onClose, onSuccess }) => {
               </div>
             ) : availableTimes.length > 0 ? (
               <div className="grid grid-cols-3 gap-2">
-                {availableTimes.map(time => (
-                  <button
-                    key={time}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, time }))}
-                    className={`p-2 rounded-lg border text-sm transition-colors ${
-                      formData.time === time
-                        ? 'bg-blue-500 text-white border-blue-500'
-                        : 'bg-white border-blue-200 hover:bg-blue-50 text-blue-700'
-                    }`}
-                    disabled={loading.submitting}
-                  >
-                    {time}
-                  </button>
-                ))}
+                {availableTimes.map(time => {
+                  const isPast = isPastTime(formData.date, time)
+                  return (
+                    <button
+                      key={time}
+                      type="button"
+                      onClick={() => !isPast && setFormData(prev => ({ ...prev, time }))}
+                      className={`p-2 rounded-lg border text-sm transition-colors ${
+                        isPast
+                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          : formData.time === time
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : 'bg-white border-blue-200 hover:bg-blue-50 text-blue-700'
+                      }`}
+                      disabled={loading.submitting || isPast}
+                      title={isPast ? 'This time has already passed' : ''}
+                    >
+                      {time}
+                      {isPast && <Icon icon="mdi:clock-alert-outline" className="ml-1 inline" />}
+                    </button>
+                  )
+                })}
               </div>
             ) : (
               <div className="bg-blue-50 text-blue-700 p-3 rounded-lg border border-blue-100 text-center">
@@ -532,10 +571,11 @@ const BookAppointmentForm = ({ clinic = {}, onClose, onSuccess }) => {
             !formData.time || 
             !formData.ownerName || 
             loading.submitting || 
-            loading.times
+            loading.times ||
+            isPastTime(formData.date, formData.time)
           }
           className={`px-4 py-2 rounded-lg flex items-center transition-colors ${
-            (!formData.petId || !formData.date || !formData.time || !formData.ownerName || loading.submitting || loading.times)
+            (!formData.petId || !formData.date || !formData.time || !formData.ownerName || loading.submitting || loading.times || isPastTime(formData.date, formData.time))
                 ? 'bg-blue-300 cursor-not-allowed text-white'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
           }`}

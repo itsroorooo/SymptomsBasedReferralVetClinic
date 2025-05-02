@@ -1,49 +1,202 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Calendar, Clock, Loader2, CheckCircle, XCircle } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
-const BookingModal = ({ clinic, onClose }) => {
+const BookingModal = ({ clinic, onClose, initialPetId = "" }) => {
   const supabase = createClient();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedTime, setSelectedTime] = useState("09:00");
+  const [selectedTime, setSelectedTime] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
-  const [selectedPet, setSelectedPet] = useState("");
+  const [selectedPet, setSelectedPet] = useState(initialPetId);
   const [pets, setPets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const [availableTimes, setAvailableTimes] = useState([]);
+  const [holidays, setHolidays] = useState([]);
+  const [loadingTimes, setLoadingTimes] = useState(false);
 
+  // Check if a time slot is in the past for the selected date
+  const isPastTime = (date, time) => {
+    if (!date || !time) return false;
+    
+    const today = new Date();
+    const selectedDate = new Date(date);
+    
+    // If selected date is not today, it's not a past time
+    if (selectedDate.toDateString() !== today.toDateString()) {
+      return false;
+    }
+    
+    // Get current hours and minutes
+    const currentHours = today.getHours();
+    const currentMinutes = today.getMinutes();
+    
+    // Parse the time slot
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    // Compare with current time
+    if (hours < currentHours) return true;
+    if (hours === currentHours && minutes < currentMinutes) return true;
+    
+    return false;
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  // Check if date is a holiday
+  const isHoliday = useCallback(
+    (date) => {
+      return holidays.some(
+        (holiday) =>
+          new Date(holiday.holiday_date).toDateString() ===
+          new Date(date).toDateString()
+      );
+    },
+    [holidays]
+  );
+
+  // Calculate end time (30 minutes after start)
+  const calculateEndTime = (startTime) => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const endTime = new Date(1970, 0, 1, hours, minutes + 30);
+    return endTime.toTimeString().substring(0, 5);
+  };
+
+  // Fetch user's pets and clinic holidays
   useEffect(() => {
-    const fetchPets = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) throw new Error("User not authenticated");
 
-        const { data, error } = await supabase
+        // Fetch pets
+        const { data: petsData, error: petsError } = await supabase
           .from("pets")
           .select("*")
           .eq("owner_id", user.id);
 
-        if (error) throw error;
+        if (petsError) throw petsError;
 
-        setPets(data || []);
-        if (data?.length > 0) setSelectedPet(data[0].id);
+        setPets(petsData || []);
+        
+        // Set initial pet if provided, otherwise first pet
+        if (initialPetId && petsData?.some(pet => pet.id === initialPetId)) {
+          setSelectedPet(initialPetId);
+        } else if (petsData?.length > 0) {
+          setSelectedPet(petsData[0].id);
+        }
+
+        // Fetch holidays
+        if (clinic.id) {
+          const { data: holidaysData, error: holidaysError } = await supabase
+            .from("veterinary_holidays")
+            .select("*")
+            .eq("clinic_id", clinic.id);
+
+          if (holidaysError) throw holidaysError;
+
+          setHolidays(holidaysData || []);
+        }
       } catch (err) {
-        console.error("Error fetching pets:", err);
-        setError("Failed to load pets");
+        console.error("Error fetching data:", err);
+        setError("Failed to load data");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchPets();
-  }, []);
+    fetchData();
+  }, [clinic.id, initialPetId, supabase]);
+
+  // Fetch available appointment times when date changes
+  useEffect(() => {
+    if (!selectedDate || !clinic.id) return;
+
+    const fetchAvailableTimes = async () => {
+      setLoadingTimes(true);
+      setAvailableTimes([]);
+      setSelectedTime("");
+
+      if (isHoliday(selectedDate)) {
+        setLoadingTimes(false);
+        return;
+      }
+
+      const dayOfWeek = selectedDate.getDay();
+
+      try {
+        // Get clinic schedule
+        const { data: schedule, error: scheduleError } = await supabase
+          .from("veterinary_schedules")
+          .select("*")
+          .eq("clinic_id", clinic.id)
+          .eq("day_of_week", dayOfWeek)
+          .single();
+
+        if (scheduleError) throw scheduleError;
+
+        if (!schedule || schedule.is_closed) {
+          setLoadingTimes(false);
+          return;
+        }
+
+        // Format date for query
+        const formattedDate = selectedDate.toISOString().split('T')[0];
+
+        // Get existing appointments
+        const { data: appointments, error: appointmentsError } = await supabase
+          .from("appointments")
+          .select("start_time")
+          .eq("clinic_id", clinic.id)
+          .eq("appointment_date", formattedDate)
+          .in("status", ['pending', 'confirmed']);
+
+        if (appointmentsError) throw appointmentsError;
+
+        // Generate available time slots
+        const bookedTimes = appointments?.map((a) => a.start_time) || [];
+        const times = [];
+        const opening = new Date(`1970-01-01T${schedule.opening_time}`);
+        const closing = new Date(`1970-01-01T${schedule.closing_time}`);
+        let currentTime = new Date(opening);
+
+        while (currentTime < closing) {
+          const timeString = currentTime.toTimeString().substring(0, 5);
+          if (!bookedTimes.includes(timeString)) {
+            times.push(timeString);
+          }
+          currentTime = new Date(currentTime.getTime() + 30 * 60000);
+        }
+
+        setAvailableTimes(times);
+        // Auto-select first available time that's not in the past
+        const firstValidTime = times.find(time => !isPastTime(selectedDate, time));
+        if (firstValidTime) setSelectedTime(firstValidTime);
+      } catch (error) {
+        console.error('Error fetching available times:', error);
+        setError('Failed to load available times');
+      } finally {
+        setLoadingTimes(false);
+      }
+    };
+
+    fetchAvailableTimes();
+  }, [selectedDate, clinic.id, isHoliday, supabase]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,6 +208,7 @@ const BookingModal = ({ clinic, onClose }) => {
       if (!selectedPet) throw new Error("Please select a pet");
       if (!selectedDate) throw new Error("Please select a date");
       if (!selectedTime) throw new Error("Please select a time");
+      if (isPastTime(selectedDate, selectedTime)) throw new Error("Cannot select a time that has already passed");
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
@@ -77,7 +231,8 @@ const BookingModal = ({ clinic, onClose }) => {
           owner_id: user.id,
           additional_info: additionalNotes,
           status: "pending",
-          pet_type: pet.pet_type
+          pet_type: pet.pet_type,
+          owner_name: user.user_metadata?.full_name || ""
         })
         .select()
         .single();
@@ -104,7 +259,7 @@ const BookingModal = ({ clinic, onClose }) => {
           .from("ai_diagnoses")
           .insert({
             consultation_id: consultation.id,
-            possible_condition: { diagnosis },
+            possible_condition: diagnosis,
             explanation: "AI-generated diagnosis from symptom analysis"
           })
           .select()
@@ -181,23 +336,6 @@ const BookingModal = ({ clinic, onClose }) => {
       setIsSubmitting(false);
     }
   };
-  
-  const calculateEndTime = (startTime) => {
-    const [hours, minutes] = startTime.split(':').map(Number);
-    let endHours = hours + 1;
-    if (endHours >= 24) endHours = 0;
-    return `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  };
-
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let hour = 8; hour <= 17; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
-      }
-    }
-    return slots;
-  };
 
   const isWeekday = (date) => {
     const day = date.getDay();
@@ -268,6 +406,7 @@ const BookingModal = ({ clinic, onClose }) => {
                 onChange={(e) => setSelectedPet(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 required
+                disabled={isSubmitting}
               >
                 {pets.map((pet) => (
                   <option key={pet.id} value={pet.id}>
@@ -290,40 +429,72 @@ const BookingModal = ({ clinic, onClose }) => {
                   filterDate={isWeekday}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 pl-10"
                   required
+                  disabled={isSubmitting || loadingTimes}
                 />
                 <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
               </div>
             </div>
 
-            {/* Time Selection */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Appointment Time
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 pl-10 appearance-none"
-                  required
-                >
-                  {generateTimeSlots().map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
-                </select>
-                <Clock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+            {/* Time Slot Selection */}
+            {selectedDate && (
+              <div className="mb-4">
+                <div className="flex items-center text-gray-700 mb-2">
+                  <Clock className="mr-2 h-5 w-5 text-gray-400" />
+                  <span className="font-medium">{formatDate(selectedDate)}</span>
+                </div>
+                
+                {isHoliday(selectedDate) ? (
+                  <div className="bg-blue-50 text-blue-700 p-3 rounded-lg border border-blue-100 text-center">
+                    <p>The clinic is closed on this day (holiday)</p>
+                  </div>
+                ) : loadingTimes ? (
+                  <div className="p-3 bg-blue-50 rounded-lg text-center border border-blue-100">
+                    <Loader2 className="animate-spin h-5 w-5 text-blue-500 mx-auto" />
+                    <p className="mt-2 text-blue-700">Loading available times...</p>
+                  </div>
+                ) : availableTimes.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {availableTimes.map(time => {
+                      const isPast = isPastTime(selectedDate, time);
+                      return (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => !isPast && setSelectedTime(time)}
+                          className={`p-2 rounded-lg border text-sm transition-colors ${
+                            isPast
+                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                              : selectedTime === time
+                                ? 'bg-blue-500 text-white border-blue-500'
+                                : 'bg-white border-blue-200 hover:bg-blue-50 text-blue-700'
+                          }`}
+                          disabled={isSubmitting || isPast}
+                          title={isPast ? 'This time has already passed' : ''}
+                        >
+                          {time}
+                          {isPast && <Clock className="ml-1 inline h-3 w-3" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="bg-blue-50 text-blue-700 p-3 rounded-lg border border-blue-100 text-center">
+                    <p>No available times for this date</p>
+                    <p className="text-sm mt-1">The clinic may be closed or fully booked</p>
+                  </div>
+                )}
+                {!selectedTime && availableTimes.length > 0 && (
+                  <p className="mt-1 text-sm text-red-600">Please select a time</p>
+                )}
               </div>
-            </div>
-
+            )}
 
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || loadingTimes || !selectedTime || !selectedPet}
               className={`w-full py-2 px-4 rounded-md text-white font-medium ${
-                isSubmitting
+                isSubmitting || loadingTimes || !selectedTime || !selectedPet
                   ? "bg-blue-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700"
               }`}

@@ -19,28 +19,34 @@ export default async function handler(req, res) {
     }
   } else if (req.method === "PATCH") {
     try {
-      const { equipment_name, equipment_description, is_available } = req.body;
+      const { is_available } = req.body;
 
-      // Validate required fields
-      if (!equipment_name) {
-        return res.status(400).json({ error: "Equipment name is required" });
-      }
+      // First, get the current equipment to verify it exists
+      const { data: existingEquipment, error: fetchError } = await supabase
+        .from("clinic_equipment")
+        .select('*')
+        .eq('id', id)
+        .single();
 
+      if (fetchError) throw fetchError;
+
+      // Update only the is_available field for standard equipment
       const { data, error } = await supabase
         .from("clinic_equipment")
-        .update({
-          equipment_name,
-          equipment_description: equipment_description || null,
-          is_available
-        })
+        .update({ is_available })
         .eq("id", id)
         .select();
 
       if (error) throw error;
 
+      if (!data || data.length === 0) {
+        throw new Error("Equipment not found after update");
+      }
+
+      // Return the full updated equipment record
       res.status(200).json(data[0]);
     } catch (error) {
-      console.error("Error updating equipment:", error);
+      console.error("Error updating equipment availability:", error);
       res.status(500).json({ error: error.message });
     }
   } else {

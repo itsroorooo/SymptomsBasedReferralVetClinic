@@ -1,4 +1,3 @@
-// Sidebar.js
 "use client";
 
 import Image from "next/image";
@@ -11,6 +10,13 @@ const Sidebar = ({
   setActiveComponent,
   activeComponent,
 }) => {
+  // Safe handler: only call setActiveComponent if it exists
+  const handleSetActive = (component) => {
+    if (typeof setActiveComponent === "function") {
+      setActiveComponent(component);
+    }
+  };
+
   return (
     <aside
       id="sidebar"
@@ -48,7 +54,7 @@ const Sidebar = ({
           href="#"
           onClick={(e) => {
             e.preventDefault();
-            setActiveComponent("Dashboard");
+            handleSetActive("Dashboard");
           }}
           className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 hover:bg-blue-500 text-lg text-white ${
             activeComponent === "Dashboard"
@@ -78,17 +84,15 @@ const Sidebar = ({
         {/* Pet Link */}
         <a
           href="#"
-          onClick={() => setActiveComponent("pet")}
+          onClick={(e) => {
+            e.preventDefault();
+            handleSetActive("pet");
+          }}
           className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 hover:bg-blue-500 text-lg text-white ${
             activeComponent === "pet" ? "bg-blue-500" : "hover:bg-blue-500"
           }`}
         >
           <svg
-            className={`w-6 h-6 mr-3 ${
-              activeComponent === "pet"
-                ? "text-white"
-                : "text-blue-500 group-hover:text-white"
-            }`}
             fill="currentColor"
             version="1.1"
             id="Capa_1"
@@ -96,6 +100,7 @@ const Sidebar = ({
             xmlnsXlink="http://www.w3.org/1999/xlink"
             viewBox="0 0 63.445 63.445"
             xmlSpace="preserve"
+            className="w-6 h-6 mr-3"
           >
             <g>
               <path d="M21.572,28.926c5.067,0,9.19-5.533,9.19-12.334s-4.123-12.334-9.19-12.334c-5.067,0-9.19,5.533-9.19,12.334 S16.504,28.926,21.572,28.926z M21.572,7.258c3.355,0,6.19,4.275,6.19,9.334s-2.834,9.334-6.19,9.334 c-3.356,0-6.19-4.275-6.19-9.334S18.216,7.258,21.572,7.258z"></path>
@@ -111,7 +116,10 @@ const Sidebar = ({
         {/* Symptoms Link */}
         <a
           href="#"
-          onClick={() => setActiveComponent("symptoms")}
+          onClick={(e) => {
+            e.preventDefault();
+            handleSetActive("symptoms");
+          }}
           className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 hover:bg-blue-500 text-lg text-white ${
             activeComponent === "symptoms" ? "bg-blue-500" : "hover:bg-blue-500"
           }`}
@@ -142,7 +150,10 @@ const Sidebar = ({
         {/* Appointment Link */}
         <a
           href="#"
-          onClick={() => setActiveComponent("appointment")}
+          onClick={(e) => {
+            e.preventDefault();
+            handleSetActive("appointment");
+          }}
           className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 text-lg ${
             activeComponent === "appointment"
               ? "bg-blue-500 text-white"
@@ -173,7 +184,10 @@ const Sidebar = ({
         {/* Map Link */}
         <a
           href="#"
-          onClick={() => setActiveComponent("map")}
+          onClick={(e) => {
+            e.preventDefault();
+            handleSetActive("map");
+          }}
           className={`group flex items-center py-3 px-6 rounded-lg mb-2 transition duration-200 text-lg ${
             activeComponent === "map"
               ? "bg-blue-500 text-white"

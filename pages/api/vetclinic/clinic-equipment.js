@@ -19,6 +19,7 @@ export default async function handler(req, res) {
           equipment_name,
           equipment_description,
           is_available,
+          is_custom,
           created_at,
           updated_at,
           equipment:equipment_id (id, name, description)
@@ -33,7 +34,7 @@ export default async function handler(req, res) {
         ...item,
         equipment_name: item.equipment_name || item.equipment?.name,
         equipment_description: item.equipment_description || item.equipment?.description,
-        is_standard: !!item.equipment_id
+        is_standard: !item.is_custom // This should match your database logic
       }));
 
       res.status(200).json(formattedData);
@@ -51,15 +52,16 @@ export default async function handler(req, res) {
     }
 
     try {
-      // Insert custom equipment (no equipment_id since it's custom)
+      // Insert custom equipment with explicit NULL equipment_id and is_custom=true
       const { data, error } = await supabase
         .from("clinic_equipment")
         .insert([{
           clinic_id,
+          equipment_id: null, // Explicitly set to NULL for custom equipment
           equipment_name,
           equipment_description: equipment_description || null,
           is_available: is_available !== false, // default to true
-
+          is_custom: true // Explicitly mark as custom
         }])
         .select(); // Return the inserted record
 
@@ -77,7 +79,8 @@ export default async function handler(req, res) {
     } catch (error) {
       console.error("Error creating custom equipment:", error);
       res.status(500).json({ 
-        error: error.message || "Failed to create custom equipment" 
+        error: error.message || "Failed to create custom equipment",
+        details: error.details || null
       });
     }
   } else {

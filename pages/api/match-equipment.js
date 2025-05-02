@@ -5,13 +5,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  if (!req.body || !req.body.aiEquipmentNames || !req.body.dbEquipments) {
-    return res.status(400).json({ message: 'Missing required fields' });
-  }
-
-  const { aiEquipmentNames, dbEquipments } = req.body;
-
   try {
+    const { aiEquipmentNames, dbEquipments } = req.body;
+
+    if (!aiEquipmentNames || !dbEquipments) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    console.log('Received matching request:', {
+      aiEquipmentCount: aiEquipmentNames.length,
+      dbEquipmentCount: dbEquipments.length
+    });
+
     // Find ALL possible matches for each AI equipment name
     const allMatches = aiEquipmentNames.map(aiName => {
       // First check for exact matches (case insensitive)
@@ -27,7 +32,8 @@ export default async function handler(req, res) {
             clinicId: match.clinicId,
             equipmentId: match.equipmentId,
             isExactMatch: true,
-            similarity: 1
+            similarity: 1,
+            isCustom: match.isCustom || false
           }))
         };
       }
@@ -40,7 +46,7 @@ export default async function handler(req, res) {
           eq.name.toLowerCase()
         )
       }))
-      .filter(eq => eq.similarity > 0.6) // Adjust threshold as needed
+      .filter(eq => eq.similarity > 0.4) // Lowered threshold for better matching
       .sort((a, b) => b.similarity - a.similarity);
 
       return {
@@ -50,17 +56,20 @@ export default async function handler(req, res) {
           clinicId: item.clinicId,
           equipmentId: item.equipmentId,
           isExactMatch: false,
-          similarity: item.similarity
+          similarity: item.similarity,
+          isCustom: item.isCustom || false
         }))
       };
     });
 
+    console.log('Generated matches:', allMatches);
     res.status(200).json(allMatches);
   } catch (error) {
     console.error('Error in match-equipment API:', error);
     res.status(500).json({ 
       message: 'Internal server error',
-      error: error.message
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }

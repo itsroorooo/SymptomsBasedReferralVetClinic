@@ -29,6 +29,8 @@ const Dashboard = () => {
     email: "",
   };
 
+  <Sidebar setActiveComponent={setActiveComponent} />
+
   // Should be initialized before use
   const [profile, setProfile] = useState(initialProfileData);
   const supabase = createClient();

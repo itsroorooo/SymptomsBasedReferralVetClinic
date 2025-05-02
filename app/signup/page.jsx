@@ -314,6 +314,53 @@ function SignupForm() {
                 )}
               </div>
 
+              {/* Mobile Number (Philippine format) with Flag inside input */}
+              <div className="relative mb-6">
+                <div className="relative">
+                  <input
+                    id="mobileNumber"
+                    name="mobileNumber"
+                    type="tel"
+                    required
+                    pattern="^(09|\+639)\d{9}$"
+                    className="peer w-full pl-12 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500"
+                    placeholder=""
+                    aria-label="Philippine Mobile Number"
+                  />
+                  {/* Philippine Flag inside input */}
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                    <div className="flex items-center">
+                      <svg
+                        width="20"
+                        height="15"
+                        viewBox="0 0 24 18"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <rect width="24" height="9" fill="#0038A8" />
+                        <rect y="9" width="24" height="9" fill="#CE1126" />
+                        <path d="M0 0 L12 9 L0 18 Z" fill="white" />
+                        <circle cx="6" cy="9" r="2.5" fill="#FCD116" />
+                        <path
+                          d="M6 4.5 L6 3 M6 15 L6 13.5 M9.5 6 L11 6 M1 6 L2.5 6 M9.5 12 L11 12 M1 12 L2.5 12 M8 7.5 L9.5 5 M3.5 5 L5 7.5 M8 10.5 L9.5 13 M3.5 13 L5 10.5"
+                          stroke="#FCD116"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <span className="ml-2 text-gray-400">+63</span>
+                    </div>
+                  </div>
+                  <label
+                    htmlFor="mobileNumber"
+                    className="absolute left-12 -top-2.5 bg-white px-1 text-sm text-gray-500 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-400 peer-placeholder-shown:top-2 peer-focus:-top-2.5 peer-focus:text-sm peer-focus:text-gray-600"
+                  >
+                    Mobile Number
+                  </label>
+                </div>
+              </div>
+
               {/* Submit Button */}
               <button
                 type="submit"
@@ -350,23 +397,6 @@ function SignupForm() {
                   className="mr-2"
                 />
                 Continue with Google
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleOAuthSignup("facebook")}
-                className="w-full flex items-center justify-center py-2.5 mt-3 rounded-lg bg-white border border-gray-300 text-gray-800 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50"
-                aria-label="Continue with Facebook"
-                disabled={loading}
-              >
-                <Image
-                  src="/image/facebook.png"
-                  width={20}
-                  height={20}
-                  alt="Facebook Logo"
-                  className="mr-2"
-                />
-                Continue with Facebook
               </button>
 
               {/* Login Link */}
